@@ -127,3 +127,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# My own storage files (used for datasets model weights etc)
+datasets/
