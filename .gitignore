@@ -130,3 +130,5 @@ dmypy.json
 
 # My own storage files (used for datasets model weights etc)
 datasets/
+*.mp4
+*.avi
