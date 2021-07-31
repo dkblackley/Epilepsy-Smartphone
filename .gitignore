@@ -132,3 +132,5 @@ dmypy.json
 datasets/
 *.mp4
 *.avi
+temp_set/
+models/
