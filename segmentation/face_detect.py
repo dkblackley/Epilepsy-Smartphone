@@ -8,10 +8,6 @@ from PIL import Image, ImageDraw
 from IPython import display
 
 
-def return_ROI(frame_batch):
-    pass
-
-
 def find_face(device, frames, display=False, debug=False, save=False):
 
     print('Running on device: {}'.format(device))
@@ -21,6 +17,7 @@ def find_face(device, frames, display=False, debug=False, save=False):
 
     currentFrame = 0
     # frame_loop = 0
+    tracking_boxes = []
 
     frames_tracked = []
     for frame in frames:
@@ -32,6 +29,7 @@ def find_face(device, frames, display=False, debug=False, save=False):
 
         # Detect and track faces
         boxes, _ = mtcnn.detect(frame)
+        tracking_boxes.append(boxes)
 
         if display and debug:
             plt.imshow(frame, aspect="auto")
@@ -50,6 +48,8 @@ def find_face(device, frames, display=False, debug=False, save=False):
         frames_tracked.append(frame_draw.resize((1920, 1080), Image.BILINEAR))
         # plt.imshow(frame_draw, aspect="auto")
         # plt.show()
+
+        return tracking_boxes
 
     # print('\nDone')
 
