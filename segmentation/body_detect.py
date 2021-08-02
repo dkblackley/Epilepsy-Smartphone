@@ -2,7 +2,7 @@ import torch
 import torchvision
 import cv2
 from PIL import Image, ImageDraw
-from seg_utils import draw_segmentation_map, get_outputs
+from segmentation.seg_utils import draw_segmentation_map, get_outputs
 from torchvision.transforms import transforms as transforms
 import matplotlib.pyplot as plt
 import numpy as np

@@ -77,10 +77,10 @@ def find_face(device, frames, display=False, debug=False, save=False):
     except KeyboardInterrupt:
         pass"""
 
-dim = frames_tracked[0].size
+"""dim = frames_tracked[0].size
 fourcc = cv2.VideoWriter_fourcc(*'FMP4')
 video_tracked = cv2.VideoWriter('video_tracked2.mp4', fourcc, 10, dim)
 for frame in frames_tracked:
     video_tracked.write(cv2.cvtColor(np.array(frame), cv2.COLOR_RGB2BGR))
-video_tracked.release()
+video_tracked.release()"""
 

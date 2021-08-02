@@ -1,10 +1,10 @@
 import torch
 from PIL import Image, ImageDraw
 import mmcv, cv2
-import body_detect
-import face_detect
-from seg_utils import *
-from sort import *
+import segmentation.body_detect as body_detect
+import segmentation.face_detect as face_detect
+from segmentation.seg_utils import *
+from segmentation.sort import *
 
 def return_ROI(frames):
     pass

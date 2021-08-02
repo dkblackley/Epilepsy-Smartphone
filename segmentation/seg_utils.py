@@ -1,11 +1,11 @@
-from coco_names import COCO_INSTANCE_CATEGORY_NAMES as coco_names
+from segmentation.coco_names import COCO_INSTANCE_CATEGORY_NAMES as coco_names
 import cv2
 import numpy as np
 import random
 import torch
 from PIL import Image
 
-from sort import *
+from segmentation.sort import *
 
 # this will help us create a different color for each class
 COLORS = np.random.uniform(0, 255, size=(len(coco_names), 3))
