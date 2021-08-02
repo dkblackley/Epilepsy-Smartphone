@@ -10,10 +10,23 @@ def return_ROI(frames):
     pass
 
 def make_video(video):
-    pass
+    dim = frames_tracked[0].size
+    fourcc = cv2.VideoWriter_fourcc(*'FMP4')
+    video_tracked = cv2.VideoWriter('video_tracked2.mp4', fourcc, 10, dim)
+    for frame in frames_tracked:
+        video_tracked.write(cv2.cvtColor(np.array(frame), cv2.COLOR_RGB2BGR))
+    video_tracked.release()
 
 
-def find_boxes(video, track, segmentation, batch_size, save=False):
+def test():
+
+    video = cv2.VideoCapture('datasets/spasm5.mp4')
+
+    find_boxes(video, 'face', 12, track=True, save=True)
+
+
+
+def find_boxes(video, segmentation, batch_size, track=True, save=False):
 
     frame_list = []
     frame_loop = 0

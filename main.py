@@ -1,16 +1,18 @@
 import utils
 from torchvision import transforms
-import dataset
 import torch
 from video_dataset import  data_set
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import epilepsy_classification.training as ec
+import segmentation.segment as segment
 
 #utils.make_labels('temp_set/')
 
 RESOLUTION_1 = 224
 RESOLUTION_2 = 224
+
+segment.test()
 
 composed_train = transforms.Compose([
                                 transforms.Resize((RESOLUTION_1, RESOLUTION_2)),
