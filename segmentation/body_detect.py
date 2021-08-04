@@ -23,8 +23,6 @@ def detect_body(device, frames, display=False, debug=False, save=False):
         transforms.ToTensor()
     ])
 
-    frames = transform(frames)
-
     threshold = 0.965
 
     currentFrame = 0
@@ -42,7 +40,10 @@ def detect_body(device, frames, display=False, debug=False, save=False):
     frame = transform(frame)
     # add a batch dimension
     frame = frame.unsqueeze(0).to(device)"""
-    masks, boxes, labels = get_outputs(frames, model, threshold)
+
+    for frame in frames:
+
+        masks, box, labels = get_outputs(frame, model, threshold)
     #result = draw_segmentation_map(orig_image, masks, boxes, labels)
     # Draw faces
     """draw = ImageDraw.Draw(orig_image)

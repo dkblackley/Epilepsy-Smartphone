@@ -10,9 +10,44 @@ from segmentation.sort import *
 # this will help us create a different color for each class
 COLORS = np.random.uniform(0, 255, size=(len(coco_names), 3))
 
-def apply_sort(boxes, mot_tracker, padding, img):
-    tracked_objects = mot_tracker.update(boxes.cpu())
-    unpad_h, unpad_w, pad_x, pad_y = padding
+def apply_pad(box, padding):
+
+    for i in range(0, int(len(padding)/2)):
+        box[i] /= padding[i]
+
+    for i in range(0, int(len(padding)/2)):
+        box[i+2] *= padding[i+2]
+
+
+def apply_sort(boxes, mot_tracker, img, pad=False):
+
+    tracked_object = []
+
+    temp = 0
+
+    for box in boxes:
+        if np.sum(box) == 0:
+            box = np.empty((0, 5))
+        else:
+            box = np.array([box])
+        #tracked_object[temp] = mot_tracker.update(box)
+        tracked = mot_tracker.update(box)
+
+        if pad:
+            apply_pad(tracked[0], pad)
+
+
+        tracked_object.append(tracked) #TODO remove this extra bracket
+
+    #tracked_object = np.array(tracked_object)
+
+    """tracked = []
+    for tracked_object in tracked_objects:
+        x1, y1, x2, y2, obj_id = tracked_object
+        tracked.append([x1, y1, x2, y2])"""
+
+
+    """unpad_h, unpad_w, pad_x, pad_y = padding
 
     unique_labels = boxes[:, -1].cpu().unique()
     n_cls_preds = len(unique_labels)
@@ -20,9 +55,9 @@ def apply_sort(boxes, mot_tracker, padding, img):
         box_h = int(((y2 - y1) / unpad_h) * img.shape[0])
         box_w = int(((x2 - x1) / unpad_w) * img.shape[1])
         y1 = int(((y1 - pad_y // 2) / unpad_h) * img.shape[0])
-        x1 = int(((x1 - pad_x // 2) / unpad_w) * img.shape[1])
+        x1 = int(((x1 - pad_x // 2) / unpad_w) * img.shape[1])"""
 
-    return [box_h, box_w, y1, x1]
+    return tracked_object
 
     """color = colors[int(obj_id) % len(colors)]
         color = [i * 255 for i in color]
@@ -48,10 +83,17 @@ def get_outputs(image, model, threshold):
     # get the bounding boxes, in (x1, y1), (x2, y2) format
     boxes = [[(int(i[0]), int(i[1])), (int(i[2]), int(i[3]))] for i in outputs[0]['boxes'].detach().cpu()]
     # discard bounding boxes below threshold value
-    boxes = boxes[:thresholded_preds_count]
+    #boxes = boxes[:thresholded_preds_count]
     # get the classes labels
     labels = [coco_names[i] for i in outputs[0]['labels']]
-    return masks, boxes, labels
+
+    people = []
+
+    for i in range(0, len(labels)):
+        if labels[i] == 'person':
+            people.append(boxes[i])
+
+    return masks, people, labels
 
 
 def draw_segmentation_map(image, masks, boxes, labels):

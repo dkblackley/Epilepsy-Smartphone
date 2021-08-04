@@ -17,7 +17,7 @@ def find_face(device, frames, display=False, debug=False, save=False):
 
     currentFrame = 0
     # frame_loop = 0
-    tracking_boxes = []
+    tracking_boxes = np.zeros(shape=(len(frames), 5))
 
     frames_tracked = []
     for frame in frames:
@@ -28,14 +28,17 @@ def find_face(device, frames, display=False, debug=False, save=False):
             print('\rTracking frame: {}'.format(currentFrame + 1), end='')
 
         # Detect and track faces
-        boxes, _ = mtcnn.detect(frame)
-        tracking_boxes.append(boxes)
+        boxes, confidence = mtcnn.detect(frame)
+        if boxes is not None:
+            temp = np.append(boxes[0], confidence[0]).tolist()
+            box = np.array(temp)
+            tracking_boxes[currentFrame - 1] = box.copy()
 
         if display and debug:
             plt.imshow(frame, aspect="auto")
             plt.show()
 
-        # Draw faces
+        """# Draw faces
         frame_draw = frame.copy()
         draw = ImageDraw.Draw(frame_draw)
 
@@ -47,9 +50,9 @@ def find_face(device, frames, display=False, debug=False, save=False):
         # Add to frame list
         frames_tracked.append(frame_draw.resize((1920, 1080), Image.BILINEAR))
         # plt.imshow(frame_draw, aspect="auto")
-        # plt.show()
+        # plt.show()"""
 
-        return tracking_boxes
+    return tracking_boxes
 
     # print('\nDone')
 
