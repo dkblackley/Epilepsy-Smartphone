@@ -39,6 +39,7 @@ def change_videos_fps(path_to_data):
         if filename[-4:] != '.mp4':
             continue
 
+        filename = "spasm.mp4"
         new_frames = []
         frame_loop = 0
 
@@ -65,7 +66,7 @@ def change_videos_fps(path_to_data):
             frame_loop += 2
 
         dim = new_frames[0].size
-        fourcc = cv2.VideoWriter_fourcc(*'MP4')
+        fourcc = cv2.VideoWriter_fourcc(*'FMP4')
         video_tracked = cv2.VideoWriter(filename, fourcc, 10, dim)
 
         for frame in new_frames:

@@ -6,24 +6,25 @@ import torch
 from PIL import Image
 
 from segmentation.sort import *
+import math
 
 # this will help us create a different color for each class
 COLORS = np.random.uniform(0, 255, size=(len(coco_names), 3))
 
-def apply_pad(box, padding):
+def apply_pad(box, padding, number):
 
     for i in range(0, int(len(padding)/2)):
-        box[i] /= padding[i]
+        box[i] -= padding[i]
+        box[i] = round(box[i]/number)*number
 
     for i in range(0, int(len(padding)/2)):
-        box[i+2] *= padding[i+2]
+        box[i+2] += padding[i+2]
+        box[i+2] = round(box[i+2]/number)*number
 
 
-def apply_sort(boxes, mot_tracker, img, pad=False):
+def apply_sort(boxes, mot_tracker, img, round, pad=False):
 
     tracked_object = []
-
-    temp = 0
 
     for box in boxes:
         if np.sum(box) == 0:
@@ -34,7 +35,10 @@ def apply_sort(boxes, mot_tracker, img, pad=False):
         tracked = mot_tracker.update(box)
 
         if pad:
-            apply_pad(tracked[0], pad)
+            try:
+                apply_pad(tracked[0], pad, round)
+            except:
+                pass
 
 
         tracked_object.append(tracked) #TODO remove this extra bracket
@@ -77,24 +81,52 @@ def get_outputs(image, model, threshold):
     thresholded_preds_inidices = [scores.index(i) for i in scores if i > threshold]
     thresholded_preds_count = len(thresholded_preds_inidices)
     # get the masks
-    masks = (outputs[0]['masks'] > 0.5).squeeze().detach().cpu().numpy()
+    #masks = (outputs[0]['masks'] > 0.5).squeeze().detach().cpu().numpy()
     # discard masks for objects which are below threshold
-    masks = masks[:thresholded_preds_count]
+    #masks = masks[:thresholded_preds_count]
     # get the bounding boxes, in (x1, y1), (x2, y2) format
     boxes = [[(int(i[0]), int(i[1])), (int(i[2]), int(i[3]))] for i in outputs[0]['boxes'].detach().cpu()]
-    # discard bounding boxes below threshold value
-    #boxes = boxes[:thresholded_preds_count]
-    # get the classes labels
-    labels = [coco_names[i] for i in outputs[0]['labels']]
 
-    people = []
+    boxes = [boxes[i] for i in thresholded_preds_inidices]
 
-    for i in range(0, len(labels)):
-        if labels[i] == 'person':
-            people.append(boxes[i])
+    if len(boxes) > 1:
+        box, index = find_best_box(boxes)
+        score = scores[index]
+    else:
+        box = boxes[0]
+        score = scores[0]
 
-    return masks, people, labels
+    box.append(score)
 
+    npbox = np.empty((1, 5))
+
+
+    coords, dims, score = box
+
+    npbox[0][0], npbox[0][1] = coords
+    npbox[0][2], npbox[0][3] = dims
+    npbox[0][4] = score
+
+
+    return npbox
+
+def find_best_box(boxes):
+
+    magnitudes = []
+    center = (1920/2, 1080/2)
+
+    for box in boxes:
+        x1, y1, x2, y2 = box
+        box_center = [(x1 + x2)/2, (y1 + y2)/2]
+
+        magnitudes.append(math.sqrt((center[0] - box_center[0])**2)+(center[1] - box_center[1])**2)
+
+    magnitudes = np.array(magnitudes)
+
+    index = (np.abs(magnitudes)).argmin()
+
+
+    return boxes[index], index
 
 def draw_segmentation_map(image, masks, boxes, labels):
     alpha = 1

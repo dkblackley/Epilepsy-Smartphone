@@ -12,6 +12,8 @@ import segmentation.segment as segment
 RESOLUTION_1 = 224
 RESOLUTION_2 = 224
 
+#utils.change_videos_fps("datasets/")
+
 segment.test()
 
 composed_train = transforms.Compose([
@@ -21,7 +23,7 @@ composed_train = transforms.Compose([
                                 #transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
                                ])
 
-#utils.change_videos_fps("datasets/")
+
 #labels = utils.read_from_csv("datasets/labels.csv")
 #utils.change_into_frames("datasets/", labels)
 

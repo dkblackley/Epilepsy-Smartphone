@@ -11,8 +11,7 @@ import numpy as np
 def detect_body(device, frames, display=False, debug=False, save=False):
 
     # initialize the model
-    model = torchvision.models.detection.maskrcnn_resnet50_fpn(pretrained=True, progress=True,
-                                                               num_classes=91)
+    model = torchvision.models.detection.keypointrcnn_resnet50_fpn(pretrained=True)
     # set the computation device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     # load the modle on to the computation device and set to eval mode
@@ -29,6 +28,7 @@ def detect_body(device, frames, display=False, debug=False, save=False):
     frame_loop = 0
 
     frames_tracked = []
+    boxes=[]
 
 
     if debug:
@@ -42,8 +42,9 @@ def detect_body(device, frames, display=False, debug=False, save=False):
     frame = frame.unsqueeze(0).to(device)"""
 
     for frame in frames:
-
-        masks, box, labels = get_outputs(frame, model, threshold)
+        frame = transform(frame)
+        box = get_outputs(frame.unsqueeze(0), model, threshold)
+        boxes.append(box)
     #result = draw_segmentation_map(orig_image, masks, boxes, labels)
     # Draw faces
     """draw = ImageDraw.Draw(orig_image)
@@ -62,7 +63,12 @@ def detect_body(device, frames, display=False, debug=False, save=False):
     # frames_tracked.append(orig_image.resize((1920, 1080), Image.BILINEAR)) used for saving drawed images"""
 
 
-    return boxes
+    npboxes = np.empty((len(boxes), 5))
+
+    for i in range(0, len(boxes)):
+        npboxes[i] = boxes[i]
+
+    return npboxes
 
     #print('\nDone')
 

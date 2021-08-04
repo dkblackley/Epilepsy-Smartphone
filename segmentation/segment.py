@@ -23,11 +23,15 @@ def test():
 
     video = cv2.VideoCapture('datasets/spasm.mp4')
 
-    find_boxes(video, 'face', 12, track=True, save=True)
+    find_boxes(video, 'body', 12, track=True, save='video_tracked_body.mp4')
+
+    video = cv2.VideoCapture('datasets/spasm.mp4')
+
+    find_boxes(video, 'face', 12, track=True, save='video_tracked_face.mp4')
 
 
 
-def find_boxes(video, segmentation, batch_size, track=True, save=False):
+def find_boxes(video, segmentation, batch_size, track=True, save='', padding=[0,0,0,0], round=1):
 
     transform = TF.ToTensor()
     batch = torch.zeros(0)
@@ -73,7 +77,8 @@ def find_boxes(video, segmentation, batch_size, track=True, save=False):
 
                 padding = [unpad_h, unpad_w, pad_x, pad_y]"""
 
-                boxes = apply_sort(boxes, mot_tracker, frame, pad=[1.1, 1.1, 1.1, 1.1])
+                boxes = apply_sort(boxes, mot_tracker, frame, round, pad=[10, 20, 10, 10])
+
             else:
                 new_box = []
                 for box in boxes:
@@ -111,7 +116,7 @@ def find_boxes(video, segmentation, batch_size, track=True, save=False):
 
         dim = frames_tracked[0].size
         fourcc = cv2.VideoWriter_fourcc(*'FMP4')
-        video_tracked = cv2.VideoWriter('video_tracked_added.mp4', fourcc, 10, dim)
+        video_tracked = cv2.VideoWriter(save, fourcc, 10, dim)
         for frame in frames_tracked:
             video_tracked.write(cv2.cvtColor(np.array(frame), cv2.COLOR_RGB2BGR))
         video_tracked.release()
