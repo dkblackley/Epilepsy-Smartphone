@@ -27,7 +27,7 @@ def apply_sort(boxes, mot_tracker, img, round, pad=False):
     tracked_object = []
 
     for box in boxes:
-        if np.sum(box) == 0:
+        if np.sum(box) <= 0:
             box = np.empty((0, 5))
         else:
             box = np.array([box])
@@ -85,13 +85,15 @@ def get_outputs(image, model, threshold):
     # discard masks for objects which are below threshold
     #masks = masks[:thresholded_preds_count]
     # get the bounding boxes, in (x1, y1), (x2, y2) format
-    boxes = [[(int(i[0]), int(i[1])), (int(i[2]), int(i[3]))] for i in outputs[0]['boxes'].detach().cpu()]
+    boxes = [[int(i[0]), int(i[1]), int(i[2]), int(i[3])] for i in outputs[0]['boxes'].detach().cpu()]
 
     boxes = [boxes[i] for i in thresholded_preds_inidices]
 
     if len(boxes) > 1:
         box, index = find_best_box(boxes)
         score = scores[index]
+    elif len(boxes) <= 0:
+        return np.empty((0, 5))
     else:
         box = boxes[0]
         score = scores[0]
@@ -100,13 +102,7 @@ def get_outputs(image, model, threshold):
 
     npbox = np.empty((1, 5))
 
-
-    coords, dims, score = box
-
-    npbox[0][0], npbox[0][1] = coords
-    npbox[0][2], npbox[0][3] = dims
-    npbox[0][4] = score
-
+    npbox[0] = box
 
     return npbox
 
@@ -117,6 +113,7 @@ def find_best_box(boxes):
 
     for box in boxes:
         x1, y1, x2, y2 = box
+
         box_center = [(x1 + x2)/2, (y1 + y2)/2]
 
         magnitudes.append(math.sqrt((center[0] - box_center[0])**2)+(center[1] - box_center[1])**2)

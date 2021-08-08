@@ -13,7 +13,7 @@ class Classifier(nn.Module):
     Class that holds and runs the efficientnet CNN
     """
 
-    def __init__(self, dropout=0.5):
+    def __init__(self, frame_length, dropout=0.5):
         """
         Initialises network parameters
         :param image_size: Input image size, used to calculate output of efficient net layer
@@ -36,7 +36,7 @@ class Classifier(nn.Module):
         self.conv1 = nn.Conv2d(3, 128, kernel_size=(3,3), padding=(1,1))
         self.bn1 = nn.BatchNorm2d(128)
         self.pool1 = nn.AdaptiveAvgPool2d(1)
-        self.temp = EfficientNet.from_pretrained("efficientnet-b0")
+        self.embed = EfficientNet.from_pretrained("efficientnet-b0")
 
         self.conv2 = nn.Conv2d(128, 256, kernel_size=(3,3), padding=(1,1))
         self.bn2 = nn.BatchNorm2d(256)
@@ -51,8 +51,8 @@ class Classifier(nn.Module):
         self.rnn1 = nn.LSTM(256, 256, 1, batch_first=False, dropout=dropout)
         #self.rnn2 = nn.LSTM(128, 64)
 
-        #self.fc2 = nn.Linear(256 * 12, 256) #hidden size * number of frames
-        self.output_layer = nn.Linear(256*12, 2)
+        self.fc2 = nn.Linear(256 * frame_length, 128) #hidden size * number of frames
+        self.output_layer = nn.Linear(128, 2)
 
         #self.output_size = output_size
         self.activation = torch.nn.ReLU()
@@ -70,6 +70,9 @@ class Classifier(nn.Module):
 
         return pad/2
 
+    def freeze_efficientNet(self, requires_grad):
+        self.embed.requires_grad = requires_grad
+
     def reset_states(self, num_layers=1, batch_size=1, hidden_size=256):
         #x.size(0)
 
@@ -78,7 +81,7 @@ class Classifier(nn.Module):
             torch.zeros(num_layers, batch_size, hidden_size).requires_grad_()
         ]
 
-    def forward(self, input):
+    def forward(self, input, detach=True):
         """
         Extracts efficient Net output then passes it through our other layers
         :param input: input Image batch
@@ -108,11 +111,12 @@ class Classifier(nn.Module):
         output = output.view(timesteps, batch_size, -1)
         output, hidden1 = self.rnn1(output, self.hidden1)
 
-        self.hidden1[0] = hidden1[0].detach()
-        self.hidden1[1] = hidden1[1].detach()
+        if detach:
+            self.hidden1[0] = hidden1[0].detach()
+            self.hidden1[1] = hidden1[1].detach()
 
         output = output.reshape(output.shape[1], -1)
-        #output = self.activation(self.fc2(output))
+        output = self.activation(self.fc2(output))
         output = TF.dropout(output, self.drop_rate)
 
         output = self.output_layer(output)

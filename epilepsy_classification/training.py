@@ -9,19 +9,20 @@ import numpy as np
 from PIL import Image, ImageDraw
 import epilepsy_classification.model as model
 import torch.nn as nn
+import utils
 
 class Trainer:
 
-    def __init__(self, dataset, frame_segments, transforms, net=False, optimizer=False):
+    def __init__(self, dataset, frame_segments, transforms, net=False, segment='', optimizer=False):
 
         self.dataset = dataset
         self.frame_seg = frame_segments
-        weight = torch.tensor([109/130, 1])
         self.criterion = nn.BCEWithLogitsLoss()
         self.transforms = transforms
+        self.segment = segment
 
         if not net:
-            self.net = model.Classifier(dropout=0.35)
+            self.net = model.Classifier(frame_segments, dropout=0.35)
             self.optim = optim.Adam(self.net.parameters(), lr=0.001, weight_decay=0.0001)
 
 
@@ -33,7 +34,6 @@ class Trainer:
         t_overall_loss = []
         v_overall_loss = []
         indices = indices_original.copy()
-
 
 
         if shuffle:
@@ -52,6 +52,9 @@ class Trainer:
 
                 data = self.dataset[current]
                 self.net.reset_states()
+
+                if not utils.check_number_of_boxes(data[self.segment], debug=True):
+                    continue
 
                 answer, loss = self.run_through(data, True)
 
@@ -98,6 +101,9 @@ class Trainer:
         filename = sample['filename']
         label = label.unsqueeze(0)
 
+        if self.segment:
+            boxes = sample[self.segment]
+
         losses = []
         accuracies = []
 
@@ -117,7 +123,16 @@ class Trainer:
             batch = torch.empty(0)
 
             try:
-                frame = self.transforms(Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)))
+                frame = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+
+                if self.segment:
+                    box = boxes.pop(0)
+
+                if sum(box) > 0:
+                    frame = frame.crop(box)
+                else:
+                    continue
+                frame = self.transforms(frame)
             except:
 
                 if not frame_list:

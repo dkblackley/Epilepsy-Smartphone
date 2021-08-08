@@ -3,9 +3,11 @@ from PIL import Image, ImageDraw
 import mmcv, cv2
 import segmentation.body_detect as body_detect
 import segmentation.face_detect as face_detect
+import utils
 from segmentation.seg_utils import *
 from segmentation.sort import *
 import torchvision.transforms as TF
+from tqdm import tqdm
 
 def return_ROI(frames):
     pass
@@ -19,25 +21,36 @@ def make_video(video):
     video_tracked.release()
 
 
-def test():
+def set_up_boxes(path):
 
-    video = cv2.VideoCapture('datasets/spasm.mp4')
+    i = 0
 
-    find_boxes(video, 'body', 12, track=True, save='video_tracked_body.mp4')
+    for filename in tqdm(os.listdir(path)):
 
-    video = cv2.VideoCapture('datasets/spasm.mp4')
+        if filename[-4:] != '.mp4':
+            continue
 
-    find_boxes(video, 'face', 12, track=True, save='video_tracked_face.mp4')
+        print("\nGenerating boxes for " + filename)
+
+        new_filename = filename[:-4]
+
+        video = cv2.VideoCapture(path + filename)
+        find_boxes(video, 'face', 12, track=True, csv=path + new_filename + '_face_boxes.csv')
+
+        video = cv2.VideoCapture(path + filename)
+        find_boxes(video, 'body', 12, track=True, csv=path + new_filename + '_body_boxes.csv')
 
 
 
-def find_boxes(video, segmentation, batch_size, track=True, save='', padding=[0,0,0,0], round=1):
+def find_boxes(video, segmentation, batch_size, track=True, save='', padding=[0,0,0,0], csv='', round=1):
 
     transform = TF.ToTensor()
     batch = torch.zeros(0)
     frame_list = []
     frame_loop = 0
     all_boxes = []
+    total_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+    end = False
     if track:
         mot_tracker = Sort()
 
@@ -53,11 +66,15 @@ def find_boxes(video, segmentation, batch_size, track=True, save='', padding=[0,
 
         try:
             frame = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+            frame_list.append(frame)
         except:
+            if not end:
+                end = True
+                frame_loop = batch_size
+            else:
+                break
 
-            break
 
-        frame_list.append(frame)
 
         if frame_loop % batch_size == 0:
 
@@ -77,7 +94,7 @@ def find_boxes(video, segmentation, batch_size, track=True, save='', padding=[0,
 
                 padding = [unpad_h, unpad_w, pad_x, pad_y]"""
 
-                boxes = apply_sort(boxes, mot_tracker, frame, round, pad=[10, 20, 10, 10])
+                boxes = apply_sort(boxes, mot_tracker, frame, round, pad=padding)
 
             else:
                 new_box = []
@@ -100,7 +117,6 @@ def find_boxes(video, segmentation, batch_size, track=True, save='', padding=[0,
                         draw.rectangle(box, outline=(255, 0, 0), width=6)
                     except:
                         pass
-
                     # Add to frame list
                     frames_tracked.append(frame_draw.resize((1920, 1080), Image.BILINEAR))
                     # plt.imshow(frame_draw, aspect="auto")
@@ -111,6 +127,18 @@ def find_boxes(video, segmentation, batch_size, track=True, save='', padding=[0,
     # When everything done, release the capture
     video.release()
     cv2.destroyAllWindows()
+
+    if csv:
+        new_boxes = []
+        for boxes in all_boxes:
+            for box in boxes:
+                if box.sum() == 0:
+                    box = [-1, -1, -1, -1]
+                else:
+                    box = box[0].tolist()
+                    box.pop()
+                new_boxes.append(box)
+        utils.write_to_csv(csv, new_boxes)
 
     if save:
 

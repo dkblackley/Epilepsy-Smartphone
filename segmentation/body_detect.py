@@ -22,7 +22,7 @@ def detect_body(device, frames, display=False, debug=False, save=False):
         transforms.ToTensor()
     ])
 
-    threshold = 0.965
+    threshold = 0.9
 
     currentFrame = 0
     frame_loop = 0
@@ -66,7 +66,10 @@ def detect_body(device, frames, display=False, debug=False, save=False):
     npboxes = np.empty((len(boxes), 5))
 
     for i in range(0, len(boxes)):
-        npboxes[i] = boxes[i]
+        if boxes[i].sum() > 0:
+            npboxes[i] = boxes[i]
+        else:
+            npboxes[i] = np.zeros(5)
 
     return npboxes
 

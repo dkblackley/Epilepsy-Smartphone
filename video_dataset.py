@@ -13,6 +13,8 @@ from tqdm import tqdm
 import torch
 import cv2
 
+import utils
+
 
 class data_set(Dataset):
     """
@@ -39,7 +41,7 @@ class data_set(Dataset):
 
 
     def __len__(self):
-        return len(self.file_names)
+        return len(self.labels)
 
     def __getitem__(self, index):
         """
@@ -56,6 +58,10 @@ class data_set(Dataset):
         full_path = os.path.join(self.root_dir, file_name)
         # Playing video from file:
         video = cv2.VideoCapture(full_path)
+
+        face_boxes = utils.read_from_csv((full_path[:-4] + '_face_boxes.csv'), to_num=True)
+        body_boxes = utils.read_from_csv((full_path[:-4] + '_body_boxes.csv'), to_num=True)
+
         if self.labels is False:
             label = False
         else:
@@ -63,7 +69,7 @@ class data_set(Dataset):
             label = self.labels[index][1:].astype(np.float)
             label = torch.from_numpy(label)
 
-        data = {'video': video, "label": label, 'filename': file_name}
+        data = {'video': video, "label": label, 'filename': file_name, 'face': face_boxes, 'body': body_boxes}
 
         return data
 

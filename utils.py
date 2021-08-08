@@ -135,13 +135,11 @@ def write_to_csv(path, list_to_write):
     :param filename: location and name of csv file
     """
 
-
-
     with open(path, 'w') as f:
         writer = csv.writer(f)
         writer.writerows(list_to_write)
 
-def read_from_csv(filename):
+def read_from_csv(filename, to_num=False):
     """
     read a file of comma separated values
     :return: a list of the read values
@@ -151,13 +149,31 @@ def read_from_csv(filename):
     with open(filename) as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=',')
         for row in csv_reader:
+            for i in range(0, len(row)):
+                row[i] = float(row[i])
 
-            """for item in row:
-                try:
-                    item = int(item)
-                except:
-                    continue"""
 
             list_to_return.append(row)
 
     return list_to_return
+
+def check_number_of_boxes(boxes, debug=False, ratio=0.65):
+
+    total = len(boxes)
+    invalid = 0
+    valid = 0
+
+    for box in boxes:
+        if sum(box) > 0:
+            valid += 1
+        else:
+            invalid += 1
+
+    if debug:
+        print(f"{valid/total}% of boxes are valid")
+        print(f"{invalid/total}% of boxes are invalid")
+
+    if invalid/total > ratio:
+        return False
+    else:
+        return True
