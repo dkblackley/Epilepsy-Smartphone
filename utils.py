@@ -182,8 +182,8 @@ def check_number_of_boxes(boxes, debug=False, ratio=0.65):
 
 def save_results(path, losses, accuracies):
 
-    write_to_csv(path, losses)
-    write_to_csv(path, accuracies)
+    write_to_csv(path + "/losses.csv", losses)
+    write_to_csv(path + "/accuracies.csv", accuracies)
 
 def get_results(paths):
 
@@ -195,12 +195,12 @@ def get_results(paths):
 
 def save_model(model, optim,  path):
     if not os.path.isdir(path):
-        os.mkdir(path)
+        os.makedirs(path)
 
     states = {'network': model.state_dict(),
               'optimizer': optim.state_dict()}
 
-    torch.save(states, path)
+    torch.save(states, path + "/model")
 
 def load_model(path, frame_segments, device):
 

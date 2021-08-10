@@ -89,7 +89,7 @@ class Trainer:
 
             if (sum(losses)/len(losses)) <= min(v_overall_loss):
                 utils.save_model(self.net, self.optim, "models/best_loss/")
-                utils.save_results("models/best_loss/", v_overall_loss, v_overall_accuracy)
+                utils.save_results("models/best_loss/", [v_overall_loss], [v_overall_accuracy])
 
 
             print('Train acc:')
