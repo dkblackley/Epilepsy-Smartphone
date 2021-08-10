@@ -14,7 +14,7 @@ RESOLUTION_2 = 224
 
 #utils.change_videos_fps("datasets/")
 
-segment.set_up_boxes("datasets/")
+#segment.set_up_boxes("datasets/")
 
 composed_train = transforms.Compose([
                                 transforms.Resize((RESOLUTION_1, RESOLUTION_2)),
@@ -30,7 +30,7 @@ composed_train = transforms.Compose([
 train_set = data_set('datasets/', composed_train, 'datasets/labels.csv', segmentation=None)
 #train_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=2, shuffle=True, num_workers=4)
 
-trainer = ec.Trainer(train_set, 30, composed_train, segment='face')
+trainer = ec.Trainer(train_set, 10, composed_train, segment='face')
 
 trainer.train(10)
 

@@ -24,6 +24,8 @@ class Trainer:
         if not net:
             self.net = model.Classifier(frame_segments, dropout=0.35)
             self.optim = optim.Adam(self.net.parameters(), lr=0.001, weight_decay=0.0001)
+        else:
+            self.net = net
 
 
     def train(self, epochs, shuffle=True, debug=False):
@@ -52,6 +54,7 @@ class Trainer:
 
                 data = self.dataset[current]
                 self.net.reset_states()
+                self.net.train()
 
                 if not utils.check_number_of_boxes(data[self.segment], debug=True):
                     continue
@@ -72,6 +75,7 @@ class Trainer:
 
                 data = self.dataset[current]
                 self.net.reset_states()
+                self.net.eval()
 
                 answer, loss = self.run_through(data, True)
 
@@ -82,6 +86,11 @@ class Trainer:
             print(accuracies)
             v_overall_loss.append(sum(losses) / len(losses))
             v_overall_accuracy.append(sum(accuracies) / len(accuracies))
+
+            if (sum(losses)/len(losses)) <= min(v_overall_loss):
+                utils.save_model(self.net, self.optim, "models/best_loss/")
+                utils.save_results("models/best_loss/", v_overall_loss, v_overall_accuracy)
+
 
             print('Train acc:')
             print(t_overall_accuracy)

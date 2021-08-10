@@ -4,6 +4,8 @@ import csv
 import torch
 import numpy as np
 from PIL import Image, ImageDraw
+from epilepsy_classification.model import Classifier
+import torch.optim as optim
 
 LABELS = {'INF': 0, 'MYC': 1}
 NUMBERS= {0: 'INF', 1: 'MYC'}
@@ -177,3 +179,41 @@ def check_number_of_boxes(boxes, debug=False, ratio=0.65):
         return False
     else:
         return True
+
+def save_results(path, losses, accuracies):
+
+    write_to_csv(path, losses)
+    write_to_csv(path, accuracies)
+
+def get_results(paths):
+
+    list = []
+    for path in paths:
+        list.append(read_from_csv(path, True))
+
+    return list
+
+def save_model(model, optim,  path):
+    if not os.path.isdir(path):
+        os.mkdir(path)
+
+    states = {'network': model.state_dict(),
+              'optimizer': optim.state_dict()}
+
+    torch.save(states, path)
+
+def load_model(path, frame_segments, device):
+
+    net = Classifier(frame_segments, dropout=0.35)
+    optimizer = optim.Adam(net.parameters(), lr=0.001, weight_decay=0.0001)
+    states = torch.load(path, map_location=device)
+
+    net.load_state_dict(states['network'])
+    optimizer.load_state_dict(states['optimizer'])
+
+    return net, optimizer
+
+
+
+
+
