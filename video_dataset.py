@@ -20,7 +20,7 @@ class data_set(Dataset):
     """
     class responsible for handling and dynamically retreiving data from the data set
     """
-    def __init__(self, path_to_data, transforms, labels_path, segmentation=None):
+    def __init__(self, path_to_data, train_transforms, test_transforms, labels_path, segmentation=None):
         """
         Init responsible for holding the list of filenames from which you can fetch data from
         :param root_dir: path to the video files
@@ -32,7 +32,8 @@ class data_set(Dataset):
         self.file_names = os.listdir(self.root_dir)
         self.file_names.sort()
         self.file_names.pop(0)
-        self.transforms = transforms
+        self.tr_transforms = train_transforms
+        self.te_transforms = test_transforms
         self.segmentation = segmentation
 
         self.labels = pd.read_csv(labels_path)

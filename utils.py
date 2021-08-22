@@ -136,7 +136,6 @@ def write_to_csv(path, list_to_write):
     :param list_to_write: list to write to csv, expects as a list of lists, each list is a new line
     :param filename: location and name of csv file
     """
-
     with open(path, 'w') as f:
         writer = csv.writer(f)
         writer.writerows(list_to_write)
@@ -159,7 +158,7 @@ def read_from_csv(filename, to_num=False):
 
     return list_to_return
 
-def check_number_of_boxes(boxes, debug=False, ratio=0.65):
+def num_boxes_greater_than_ratio(boxes, debug=False, ratio=0.8):
 
     total = len(boxes)
     invalid = 0
@@ -172,18 +171,22 @@ def check_number_of_boxes(boxes, debug=False, ratio=0.65):
             invalid += 1
 
     if debug:
-        print(f"{valid/total}% of boxes are valid")
-        print(f"{invalid/total}% of boxes are invalid")
+        print(f"{(valid/total)*100}% of boxes are valid")
+        print(f"{(invalid/total)*100}% of boxes are invalid\n")
 
-    if invalid/total > ratio:
-        return False
-    else:
+    if valid/total > ratio:
         return True
+    else:
+        return False
 
-def save_results(path, losses, accuracies):
+def save_results(path, losses, accuracies, loss_filename="losses", accuracry_filname="accuracy", debug=False):
 
-    write_to_csv(path + "/losses.csv", losses)
-    write_to_csv(path + "/accuracies.csv", accuracies)
+    if not os.path.isdir(path):
+        os.mkdir(path)
+    if debug:
+        print(f"Saving to {path + loss_filename}.csv")
+    write_to_csv(path + f"{loss_filename}.csv", losses)
+    write_to_csv(path + f"{accuracry_filname}.csv", accuracies)
 
 def get_results(paths):
 

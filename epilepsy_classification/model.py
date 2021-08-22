@@ -33,13 +33,13 @@ class Classifier(nn.Module):
 
         #padding = self.calc_padding(1, 128, 224, 5)
 
-        self.conv1 = nn.Conv2d(3, 128, kernel_size=(3,3), padding=(1,1))
-        self.bn1 = nn.BatchNorm2d(128)
+        self.conv1 = nn.Conv2d(3, 32, kernel_size=(3,3), padding=(1,1))
+        self.bn1 = nn.BatchNorm2d(32)
         self.pool1 = nn.AdaptiveAvgPool2d(1)
-        self.embed = EfficientNet.from_pretrained("efficientnet-b0")
+        #self.embed = EfficientNet.from_pretrained("efficientnet-b0")
 
-        self.conv2 = nn.Conv2d(128, 256, kernel_size=(3,3), padding=(1,1))
-        self.bn2 = nn.BatchNorm2d(256)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=(3,3), padding=(1,1))
+        self.bn2 = nn.BatchNorm2d(64)
         self.pool2 = nn.AdaptiveAvgPool2d(1)
 
         """self.conv3 = nn.Conv2d(256, 512, kernel_size=(3,3), padding=(1,1))
@@ -48,11 +48,11 @@ class Classifier(nn.Module):
 
         #self.fc1 = nn.Linear(6144, 256)
 
-        self.rnn1 = nn.LSTM(256, 256, 1, batch_first=False, dropout=dropout)
+        self.rnn1 = nn.LSTM(64, 128, 1, batch_first=False, dropout=dropout)
         #self.rnn2 = nn.LSTM(128, 64)
 
-        self.fc2 = nn.Linear(256 * frame_length, 128) #hidden size * number of frames
-        self.output_layer = nn.Linear(128, 2)
+        self.fc2 = nn.Linear(128 * frame_length, 1000) #hidden size * number of frames
+        self.output_layer = nn.Linear(1000, 2)
 
         #self.output_size = output_size
         self.activation = torch.nn.ReLU()
@@ -73,13 +73,19 @@ class Classifier(nn.Module):
     def freeze_efficientNet(self, requires_grad):
         self.embed.requires_grad = requires_grad
 
-    def reset_states(self, num_layers=1, batch_size=1, hidden_size=256):
+    def reset_states(self, num_layers=1, batch_size=1, hidden_size=128, requires_grad=True):
         #x.size(0)
 
-        self.hidden1 = [
-            torch.zeros(num_layers, batch_size, hidden_size).requires_grad_(),
-            torch.zeros(num_layers, batch_size, hidden_size).requires_grad_()
-        ]
+        if requires_grad:
+            self.hidden1 = [
+                torch.zeros(num_layers, batch_size, hidden_size).requires_grad_(),
+                torch.zeros(num_layers, batch_size, hidden_size).requires_grad_()
+            ]
+        else:
+            self.hidden1 = [
+                torch.zeros(num_layers, batch_size, hidden_size),
+                torch.zeros(num_layers, batch_size, hidden_size)
+            ]
 
     def forward(self, input, detach=True):
         """

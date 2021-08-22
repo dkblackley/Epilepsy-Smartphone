@@ -19,6 +19,17 @@ RESOLUTION_2 = 224
 composed_train = transforms.Compose([
                                 transforms.Resize((RESOLUTION_1, RESOLUTION_2)),
                                 transforms.ToTensor(),
+                                #transforms.ColorJitter(brightness=0.1, contrast=0.1),
+                                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+                                # call helper.get_mean_and_std(data_set) to get mean and std
+                                #transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+                               ])
+
+composed_test = transforms.Compose([
+                                transforms.Resize((RESOLUTION_1, RESOLUTION_2)),
+                                transforms.ToTensor(),
+                                #transforms.ColorJitter(brightness=0.1, contrast=0.1),
+                                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
                                 # call helper.get_mean_and_std(data_set) to get mean and std
                                 #transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
                                ])
@@ -27,12 +38,19 @@ composed_train = transforms.Compose([
 #labels = utils.read_from_csv("datasets/labels.csv")
 #utils.change_into_frames("datasets/", labels)
 
-train_set = data_set('datasets/', composed_train, 'datasets/labels.csv', segmentation=None)
+train_set = data_set('datasets/', composed_train, composed_test, 'datasets/labels.csv', segmentation=None)
 #train_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=2, shuffle=True, num_workers=4)
 
-trainer = ec.Trainer(train_set, 10, composed_train, segment='face')
+trainer = ec.Trainer(train_set, 60, composed_train, composed_test, segment='body', early_stop=False)
+trainer2 = ec.Trainer(train_set, 60, composed_train, composed_test, segment='face', early_stop=False)
+trainer3 = ec.Trainer(train_set, 60, composed_train, composed_test, segment='', early_stop=False)
 
-trainer.train(10)
+
+trainer.LOSO(10, debug=True)
+trainer2.LOSO(10, debug=True)
+trainer3.LOSO(10, debug=True)
+
+#trainer.train(10)
 
 
 
