@@ -19,7 +19,8 @@ class Trainer:
 
         self.dataset = dataset
         self.frame_seg = frame_segments
-        self.criterion = nn.BCEWithLogitsLoss(reduce=False)
+        self.criterion = nn.BCEWithLogitsLoss(reduction='none')
+        self.criterion2 = nn.BCEWithLogitsLoss()
         self.weight = torch.tensor([1.0, 1.0])
         self.tr_transforms = tr_transforms
         self.te_transforms = te_transforms
@@ -29,8 +30,8 @@ class Trainer:
         self.early_stop = early_stop
 
         if not net:
-            self.net = model.Classifier(frame_segments, dropout=0.5)
-            self.optim = optim.Adam(self.net.parameters(), lr=0.0001)
+            self.net = model.Classifier(frame_segments, dropout=0.35)
+            self.optim = optim.Adam(self.net.parameters(), lr=0.001, weight_decay=0.0001)
         else:
             self.net = net
             self.optim = optimizer
@@ -45,14 +46,24 @@ class Trainer:
         for i in indices:
             data = self.dataset[i]
             label = data['label']
+            video = data['video']
+            segment_length = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
             if np.argmax(label) == 0:
-                x1 += 1
+                x1 += segment_length
             else:
-                x2 += 1
+                x2 += segment_length
 
-        x1 = x1/len(indices)
-        x2 = x2/len(indices)
+        x1 = 1/x1
+        x2 = 1/x2
 
+        if x1 > x2:
+            #x1 *= 100
+            x2 = x2 / x1
+            x1 = x1/x1
+        else:
+            #x2 *= 2
+            x1 = x1/x2
+            x2 = x2/x2
 
         self.weight = torch.tensor([x1, x2])
 
@@ -74,6 +85,13 @@ class Trainer:
                 if debug:
                     print(f"{data['filename']} Has been removed\n")
                 indices.pop(i)
+            elif self.segment:
+                if len(data[self.segment]) < self.frame_seg:
+                    if debug:
+                        print(f"Skipping video {data['filename']} due to unsatisfactory bounding boxes\n")
+                    indices.pop(i)
+                else:
+                    i = i + 1
             else:
                 i = i + 1
 
@@ -84,10 +102,11 @@ class Trainer:
 
         for i in range(0, len(indices)):
             self.save_dir = f"models/LOSO_model_{self.segment}_{i + 1}/"
+            if debug:
+                print(f"Working on model LOSO_model_{self.segment}_{i + 1}")
             self.net = model.Classifier(self.frame_seg, dropout=0.35)
             self.optim = optim.Adam(self.net.parameters(), lr=0.001, weight_decay=0.0001)
             indices_copy = indices.copy()
-            self.set_weights(indices_copy[:i] + indices_copy[i + 1:])
             self.train(epochs, train=indices_copy[:i] + indices_copy[i+1:], val=[indices[i]])
 
             results.append(self.test([indices[i]])[0])
@@ -105,21 +124,18 @@ class Trainer:
 
         if train is None:
             indices_original = [i for i in range(0, len(self.dataset))]
-
-            if shuffle:
-                random.shuffle(indices_original)
-
             train = indices_original[int(len(indices_original) * split):].copy()
             val = indices_original[:int(len(indices_original) * split)].copy()
-        elif shuffle:
-            random.shuffle(val)
-            random.shuffle(train)
 
         self.set_weights(train)
 
         for i in range(0, epochs):
 
             print(f"EPOCH {i} of {epochs}")
+
+            if shuffle:
+                random.shuffle(val)
+                random.shuffle(train)
 
             accuracies = []
             losses = []
@@ -129,11 +145,11 @@ class Trainer:
                 data = self.dataset[current]
                 self.net.reset_states()
 
-                if self.segment:
+                """if self.segment:
                     if not utils.num_boxes_greater_than_ratio(data[self.segment], debug=True) or len(data[self.segment]) < self.frame_seg:
                         if debug:
                             print(f"Skipping video {data['filename']} due to unsatisfactory bounding boxes\n")
-                        continue
+                        continue"""
 
                 answer, loss = self.run_through(data, True)
 
@@ -284,6 +300,7 @@ class Trainer:
                 batch = batch.unsqueeze(0)
                 output = self.net(batch)
                 frame_list.clear()
+                loss_test = self.criterion2(output, label)
                 loss = self.criterion(output, label)
                 loss = loss * self.weight
                 loss = loss.mean()

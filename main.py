@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 import epilepsy_classification.training as ec
 import segmentation.segment as segment
+import video_dataset_2
 
 #utils.make_labels('temp_set/')
 
@@ -19,10 +20,10 @@ RESOLUTION_2 = 224
 composed_train = transforms.Compose([
                                 transforms.Resize((RESOLUTION_1, RESOLUTION_2)),
                                 transforms.ToTensor(),
-                                #transforms.ColorJitter(brightness=0.1, contrast=0.1),
-                                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+                                transforms.ColorJitter(brightness=0.1, contrast=0.1),
+                                #transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
                                 # call helper.get_mean_and_std(data_set) to get mean and std
-                                #transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+                                transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
                                ])
 
 composed_test = transforms.Compose([
@@ -40,15 +41,26 @@ composed_test = transforms.Compose([
 
 train_set = data_set('datasets/', composed_train, composed_test, 'datasets/labels.csv', segmentation=None)
 #train_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=2, shuffle=True, num_workers=4)
+train_loader = video_dataset_2.VideoFrameDataset(
+    root_path=root,
+    annotationfile_path=annotation_file,
+    num_segments=5,
+    frames_per_segment=1,
+    imagefile_template='img_{:05d}.jpg',
+    transform=None,
+    random_shift=True,
+    test_mode=False
+)
 
 trainer = ec.Trainer(train_set, 60, composed_train, composed_test, segment='body', early_stop=False)
 trainer2 = ec.Trainer(train_set, 60, composed_train, composed_test, segment='face', early_stop=False)
 trainer3 = ec.Trainer(train_set, 60, composed_train, composed_test, segment='', early_stop=False)
 
 
-trainer.LOSO(10, debug=True)
-trainer2.LOSO(10, debug=True)
-trainer3.LOSO(10, debug=True)
+
+trainer.LOSO(5, debug=True)
+trainer2.LOSO(5, debug=True)
+trainer3.LOSO(5, debug=True)
 
 #trainer.train(10)
 

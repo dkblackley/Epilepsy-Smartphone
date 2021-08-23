@@ -34,11 +34,11 @@ def set_up_boxes(path):
 
         new_filename = filename[:-4]
 
-        video = cv2.VideoCapture(path + filename)
-        find_boxes(video, 'face', 12, track=True, csv=path + new_filename + '_face_boxes.csv')
+        video = cv2.VideoCapture(path + "mimic5.mp4")
+        find_boxes(video, 'face', 12, track=True, save='hello', csv=path + new_filename + '_face_boxes.csv')
 
         video = cv2.VideoCapture(path + filename)
-        find_boxes(video, 'body', 12, track=True, csv=path + new_filename + '_body_boxes.csv')
+        find_boxes(video, 'body', 12, track=True, csv=path + new_filename + '_body_boxes.csv', save='hello')
 
 
 
@@ -67,14 +67,13 @@ def find_boxes(video, segmentation, batch_size, track=True, save='', padding=[0,
         try:
             frame = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
             frame_list.append(frame)
+            #frame.show()
         except:
             if not end:
                 end = True
                 frame_loop = batch_size
             else:
                 break
-
-
 
         if frame_loop % batch_size == 0:
 
@@ -119,6 +118,11 @@ def find_boxes(video, segmentation, batch_size, track=True, save='', padding=[0,
                         pass
                     # Add to frame list
                     frames_tracked.append(frame_draw.resize((1920, 1080), Image.BILINEAR))
+
+                    """frame_draw.show()
+                    frame = frame.crop(box)
+                    frame.show()"""
+
                     # plt.imshow(frame_draw, aspect="auto")
                     # plt.show()
 
