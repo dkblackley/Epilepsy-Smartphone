@@ -15,7 +15,7 @@ import torch
 class Trainer:
 
     def __init__(self, dataset, frame_segments, tr_transforms, te_transforms, net=False, segment='', save_diir="models/",
-                 optimizer=False, threshold=0.75, early_stop=True):
+                 optimizer=False, threshold=0.75, early_stop=True, device='cpu'):
 
         self.dataset = dataset
         self.frame_seg = frame_segments
@@ -28,13 +28,19 @@ class Trainer:
         self.save_dir = save_diir
         self.threshold = threshold
         self.early_stop = early_stop
+        self.device = device
 
         if not net:
             self.net = model.Classifier(frame_segments, dropout=0.35)
+            self.net = self.net.to(device)
             self.optim = optim.Adam(self.net.parameters(), lr=0.001, weight_decay=0.0001)
+            #self.scheduler = optim.lr_scheduler.CyclicLR(self.optim, base_lr=0.0001, max_lr=0.01,
+                                                        #step_size_up=(13 * 2), mode="triangular2")
         else:
             self.net = net
+            self.net = self.net.to(device)
             self.optim = optimizer
+            self.optim = self.optim.to(device)
 
     def set_save_dir(self, new_dir):
         self.save_dir = new_dir
@@ -48,24 +54,28 @@ class Trainer:
             label = data['label']
             video = data['video']
             segment_length = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
-            if np.argmax(label) == 0:
+            if label == 0:
                 x1 += segment_length
+                #x1 += 1
             else:
                 x2 += segment_length
+                #x2 += 1
 
-        x1 = 1/x1
+        """x1 = 1/x1
         x2 = 1/x2
 
         if x1 > x2:
-            #x1 *= 100
+            pass
+            x1 *= 200
             x2 = x2 / x1
             x1 = x1/x1
         else:
             #x2 *= 2
             x1 = x1/x2
-            x2 = x2/x2
+            x2 = x2/x2"""
 
-        self.weight = torch.tensor([x1, x2])
+        self.weight = torch.tensor([x1/x2]).to(self.device)
+        self.criterion2 = nn.BCEWithLogitsLoss(pos_weight=self.weight)
 
 
     def LOSO(self, epochs, shuffle=True, debug=False):
@@ -86,7 +96,15 @@ class Trainer:
                     print(f"{data['filename']} Has been removed\n")
                 indices.pop(i)
             elif self.segment:
-                if len(data[self.segment]) < self.frame_seg:
+                boxes = data[self.segment]
+                num_valid = 0
+                num_valid_2 = 0
+                cap = len(boxes) - self.frame_seg
+                for box in boxes:
+                    if sum(box) > 0:
+                        num_valid += 1
+
+                if num_valid < self.frame_seg:
                     if debug:
                         print(f"Skipping video {data['filename']} due to unsatisfactory bounding boxes\n")
                     indices.pop(i)
@@ -101,15 +119,15 @@ class Trainer:
         results = [["filename", "MIMIC", "INF"]]
 
         for i in range(0, len(indices)):
-            self.save_dir = f"models/LOSO_model_{self.segment}_{i + 1}/"
+            self.save_dir = f"models/LOSO_{self.dataset[indices[i]]['filename'][:-4]}_{self.segment}/"
             if debug:
-                print(f"Working on model LOSO_model_{self.segment}_{i + 1}")
+                print(f"Working on model LOSO_model_{self.dataset[indices[i]]['filename'][:-4]}_{self.segment}")
             self.net = model.Classifier(self.frame_seg, dropout=0.35)
             self.optim = optim.Adam(self.net.parameters(), lr=0.001, weight_decay=0.0001)
             indices_copy = indices.copy()
-            self.train(epochs, train=indices_copy[:i] + indices_copy[i+1:], val=[indices[i]])
+            self.train(epochs, train=indices_copy[:i] + indices_copy[i+1:], val=[indices[i]], debug=debug)
 
-            results.append(self.test([indices[i]])[0])
+            results.append(self.test([indices[i]], debug)[0])
 
         utils.write_to_csv(f"models/LOSO_{self.segment}_RESULTS.csv", results)
 
@@ -133,6 +151,9 @@ class Trainer:
 
             print(f"EPOCH {i} of {epochs}")
 
+            if i == 29:
+                print("HERE")
+
             if shuffle:
                 random.shuffle(val)
                 random.shuffle(train)
@@ -151,7 +172,12 @@ class Trainer:
                             print(f"Skipping video {data['filename']} due to unsatisfactory bounding boxes\n")
                         continue"""
 
-                answer, loss = self.run_through(data, True)
+                output = -1
+
+                while(output == -1):
+                    output = self.run_through2(data, True, debug=debug)
+
+                answer, loss = output
 
                 accuracies.append(answer)
                 losses.append(loss)
@@ -170,7 +196,12 @@ class Trainer:
                 self.net.reset_states(requires_grad=False)
 
                 with torch.no_grad():
-                    answer, loss = self.run_through(data, False)
+
+                    output = -1
+                    while (output == -1):
+                        output = self.run_through2(data, False, average_res=True, debug=debug)
+
+                    answer, loss = output
 
                 accuracies.append(answer)
                 losses.append(loss)
@@ -201,29 +232,146 @@ class Trainer:
             print('val loss:')
             print(v_overall_loss)
 
-    def test(self, indices):
+    def test(self, indices, debug):
 
         self.net.eval()
         results = []
+        answers = []
 
         for index in indices:
             data = self.dataset[index]
             self.net.reset_states(requires_grad=False)
 
             with torch.no_grad():
-                answers, _ = self.run_through(data, False, probs=True)
+                answer, _ = self.run_through2(data, False, average_res=True, probs=True, debug=debug)
 
-            answers = answers.tolist()
+            answers.append([1-answer, answer])
+        for answer in answers:
+            result = [data['filename'], answer[0], answer[1]]
+            results.append(result)
 
-            for answer in answers:
-                result = [data['filename'], answer[0], answer[1]]
-                results.append(result)
+        if debug:
+            print(f"\n{data['filename']} result: {result} \n")
 
         return results
 
 
+    def run_through2(self, sample, train, debug=False, probs=False, average_res=False):
 
-    def run_through(self, sample, train, debug=False, probs=False):
+        video = sample['video']
+        label = sample['label'].to(self.device).unsqueeze(0)
+        filename = sample['filename']
+        label = label.unsqueeze(0)
+        if self.segment:
+            boxes = sample[self.segment]
+
+
+        losses = []
+        accuracies = []
+
+        segment_length = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+        frame_list = []
+        frame_count = 0
+
+        frames_to_get = random.randrange(self.frame_seg, segment_length, self.frame_seg)
+        start_frame = frames_to_get - self.frame_seg
+        end_frame = frames_to_get
+        current_frame = 0
+
+        while (True):
+
+            # Capture frame-by-frame
+            ret, frame = video.read()
+            batch = torch.empty(0)
+
+            try:
+                frame = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+
+                if current_frame < start_frame and not average_res:
+                    current_frame += 1
+                    continue
+
+                if self.segment:
+                    box = boxes[current_frame]
+
+                    if sum(box) > 0:
+                        frame = frame.crop(box)
+                        #if filename == "spasm6.mp4":
+                        #    frame.show()
+                    else:
+                        boxes.pop(current_frame)
+                        continue
+                if train:
+                    frame = self.tr_transforms(frame).to(self.device)
+                else:
+                    frame = self.te_transforms(frame).to(self.device)
+            except Exception as e:
+
+                if average_res:
+                    total_loss = 0
+                    out = 0
+                    for i in range(0, len(losses)):
+                        total_loss += losses[i]
+                        out += accuracies[i][0]
+
+                    output = out/len(accuracies)
+                    loss = total_loss/len(losses)
+                    if probs:
+                        return output, loss
+
+                    answer = check_true(output, label.numpy()[0][0])
+                    return answer, loss
+
+                if current_frame < end_frame:
+                    if debug:
+                        print(e)
+                    return -1
+
+            current_frame += 1
+            frame_list.append(frame)
+
+            if (average_res and current_frame % self.frame_seg == 0) or current_frame == end_frame:
+                torch.stack(frame_list, out=batch)
+
+                batch = batch.unsqueeze(0)
+                output = self.net(batch)
+                frame_list.clear()
+                #loss_test = self.criterion2(output, label)
+                loss = self.criterion(output, label)
+                #loss = loss * self.weight
+                #loss = loss.mean()
+
+                if train:
+                    loss.backward()
+                    self.optim.step()
+                    #self.scheduler.step()
+                    self.optim.zero_grad()
+
+                if average_res:
+                    output = output.detach()
+                    torch.sigmoid(input=output, out=output)
+                    accuracies.append(output.numpy()[0])
+                    losses.append(loss.item())
+                    #self.net.reset_states()
+                else:
+                    output = output.detach()
+                    torch.sigmoid(input=output, out=output)
+                    if probs:
+                        return output, loss.item()
+
+                    answer = check_true(output.numpy()[0][0], label.numpy()[0][0])
+                    return answer, loss.item()
+
+def check_true(answer, label):
+    if answer > 0.5 and label == 1:
+        return 1
+    elif answer < 0.5 and label == 0:
+        return 1
+    else:
+        return 0
+
+
+"""    def run_through(self, sample, train, debug=False, probs=False):
 
         video = sample['video']
         label = sample['label']
@@ -300,14 +448,15 @@ class Trainer:
                 batch = batch.unsqueeze(0)
                 output = self.net(batch)
                 frame_list.clear()
-                loss_test = self.criterion2(output, label)
+                #loss_test = self.criterion2(output, label)
                 loss = self.criterion(output, label)
-                loss = loss * self.weight
+                #loss = loss * self.weight
                 loss = loss.mean()
 
                 if train:
                     loss.backward()
                     self.optim.step()
+                    #self.scheduler.step()
                     self.optim.zero_grad()
                 #if frame_count > 50:
-                    #self.net.reset_states()
+                    #self.net.reset_states()"""

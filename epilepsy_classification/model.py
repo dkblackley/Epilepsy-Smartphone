@@ -34,36 +34,38 @@ class Classifier(nn.Module):
 
         #padding = self.calc_padding(1, 128, 224, 5)
 
-        self.conv1 = nn.Conv2d(3, 32, kernel_size=(6, 6), padding=(1,1))
+        self.conv1 = nn.Conv2d(3, 32, kernel_size=(3, 3), padding=(1,1))
         self.bn1 = nn.BatchNorm2d(32)
-        #self.pool1 = nn.MaxPool2d((5, 5))
-        self.pool1 = nn.AdaptiveAvgPool2d((2,2))
+        #self.pool1 = nn.MaxPool2d((2, 2))
+        self.pool1 = nn.AdaptiveAvgPool2d(1)
         #self.embed = EfficientNet.from_pretrained("efficientnet-b0")
 
         self.conv2 = nn.Conv2d(32, 64, kernel_size=(3, 3), padding=(1,1))
         self.bn2 = nn.BatchNorm2d(64)
-        #self.pool2 = nn.MaxPool2d((5, 5))
+        #self.pool2 = nn.MaxPool2d((2, 2))
         self.pool2 = nn.AdaptiveAvgPool2d(1)
 
-        self.conv3 = nn.Conv2d(64, 256, kernel_size=(3,3), padding=(1,1))
-        self.bn3 = nn.BatchNorm2d(512)
-        #self.pool3 = nn.MaxPool2d(1)
+        self.conv3 = nn.Conv2d(64, 128, kernel_size=(5, 5), padding=(1,1))
+        self.bn3 = nn.BatchNorm2d(128)
+        self.pool3 = nn.MaxPool2d((2, 2))
+        #self.pool3 = nn.AdaptiveAvgPool2d(1)
 
         """with torch.no_grad():
             temp_input = torch.zeros(1, 3, 224, 224)
             temp_input = self.pool1(self.conv1((temp_input)))
             temp_input = self.pool2(self.conv2((temp_input)))
-            self.shape = temp_input[0].shape[0]*temp_input[0].shape[1]*temp_input[0].shape[2]"""
+            self.shape = temp_input[0].shape[0]*temp_input[0].shape[1]*temp_input[0].shape[2]
 
-        #self.fc1 = nn.Linear(self.shape, 128)
+        self.fc1 = nn.Linear(self.shape, 64)"""
 
         self.rnn1 = nn.LSTM(64, self.lstm_size, 1, batch_first=False, dropout=dropout)
         #self.rnn2 = nn.LSTM(128, 64)
 
         #self.fc1 = nn.Linear(self.lstm_size * frame_length, 256)
-        self.fc2 = nn.Linear(self.lstm_size * frame_length, 64)
+        #self.fc2 = nn.Linear(self.lstm_size * frame_length, 64)
         #self.fc2 = nn.Linear(1000, 500) #hidden size * number of frames
-        self.output_layer = nn.Linear(64, 2)
+        #self.output_layer = nn.Linear(64, 2)
+        self.output_layer = nn.Linear(self.lstm_size * frame_length, 1)
 
         #self.output_size = output_size
         self.activation = torch.nn.ReLU()
@@ -139,8 +141,8 @@ class Classifier(nn.Module):
             self.hidden1[1] = hidden1[1].detach()
 
 
-        output = self.activation(self.fc2(output))
-        output = TF.dropout(output, self.drop_rate)
+        """output = self.activation(self.fc2(output))
+        output = TF.dropout(output, self.drop_rate)"""
 
         output = self.output_layer(output)
 

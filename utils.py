@@ -76,7 +76,7 @@ def change_videos_fps(path_to_data):
         video_tracked.release()
         cap.release()
 
-def change_into_frames(path_to_data, labels):
+def change_into_frames(path_to_data, path_to_save, labels):
 
     #filenames = [f for f in os.listdir(path_to_data) if os.path.isfile(os.path.join(path_to_data, f))]
     labels.pop(0)

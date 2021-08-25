@@ -4,6 +4,8 @@ File used for handling the data set
 
 from __future__ import print_function, division
 import os
+
+import numpy
 import pandas as pd
 import numpy as np
 from PIL import Image
@@ -68,7 +70,8 @@ class data_set(Dataset):
         else:
             #label = self.get_class_name(self.labels[index][1:])
             label = self.labels[index][1:].astype(np.float)
-            label = torch.from_numpy(label)
+            label = np.argmax(label)
+            label = torch.tensor(float(label))
 
         data = {'video': video, "label": label, 'filename': file_name, 'face': face_boxes, 'body': body_boxes}
 
@@ -147,7 +150,6 @@ class RandomCrop(object):
 
 
 class RemoveBorders(object):
-    # Unused
 
     def __init__(self, image_size, tolerance=0):
         self.tol = tolerance

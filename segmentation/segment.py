@@ -30,11 +30,14 @@ def set_up_boxes(path):
         if filename[-4:] != '.mp4':
             continue
 
+        if filename != "spasm8.mp4" and filename != "mimic3.mp4":
+            continue
+
         print("\nGenerating boxes for " + filename)
 
         new_filename = filename[:-4]
 
-        video = cv2.VideoCapture(path + "mimic5.mp4")
+        video = cv2.VideoCapture(path + filename)
         find_boxes(video, 'face', 12, track=True, save='hello', csv=path + new_filename + '_face_boxes.csv')
 
         video = cv2.VideoCapture(path + filename)
