@@ -4,7 +4,6 @@ File responsible for holding the model, uses efficientnet
 import torch
 import torch.nn as nn
 from torch.nn import functional as TF
-from efficientnet_pytorch import EfficientNet
 #import convlstm
 
 
@@ -13,7 +12,7 @@ class Classifier(nn.Module):
     Class that holds and runs the efficientnet CNN
     """
 
-    def __init__(self, frame_length, dropout=0.5):
+    def __init__(self, frame_length, dropout=0.5, device='cpu'):
         """
         Initialises network parameters
         :param image_size: Input image size, used to calculate output of efficient net layer
@@ -27,6 +26,9 @@ class Classifier(nn.Module):
         super(Classifier, self).__init__()
         self.drop_rate = dropout
         self.lstm_size = 64
+        self.conv1_layer = 32
+        self.conv2_layer = 32
+        self.device = device
 
         #self.convlstm = convlstm.ConvLSTM(input_dim=3, hidden_dim=[128, 64], kernel_size=(3,3), num_layers=2, batch_first=True)
 
@@ -34,20 +36,20 @@ class Classifier(nn.Module):
 
         #padding = self.calc_padding(1, 128, 224, 5)
 
-        self.conv1 = nn.Conv2d(3, 32, kernel_size=(3, 3), padding=(1,1))
-        self.bn1 = nn.BatchNorm2d(32)
+        self.conv1 = nn.Conv2d(3, self.conv1_layer, kernel_size=(3, 3), padding=(1,1))
+        self.bn1 = nn.BatchNorm2d(self.conv1_layer)
         #self.pool1 = nn.MaxPool2d((2, 2))
         self.pool1 = nn.AdaptiveAvgPool2d(1)
         #self.embed = EfficientNet.from_pretrained("efficientnet-b0")
 
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=(3, 3), padding=(1,1))
-        self.bn2 = nn.BatchNorm2d(64)
+        #self.conv2 = nn.Conv2d(self.conv1_layer, self.conv2_layer, kernel_size=(3, 3), padding=(1,1))
+        #self.bn2 = nn.BatchNorm2d(self.conv2_layer)
         #self.pool2 = nn.MaxPool2d((2, 2))
-        self.pool2 = nn.AdaptiveAvgPool2d(1)
+        #self.pool2 = nn.AdaptiveAvgPool2d(1)
 
-        self.conv3 = nn.Conv2d(64, 128, kernel_size=(5, 5), padding=(1,1))
-        self.bn3 = nn.BatchNorm2d(128)
-        self.pool3 = nn.MaxPool2d((2, 2))
+        #self.conv3 = nn.Conv2d(self.conv2_layer, 128, kernel_size=(5, 5), padding=(1,1))
+        #self.bn3 = nn.BatchNorm2d(128)
+        #self.pool3 = nn.MaxPool2d((2, 2))
         #self.pool3 = nn.AdaptiveAvgPool2d(1)
 
         """with torch.no_grad():
@@ -58,17 +60,17 @@ class Classifier(nn.Module):
 
         self.fc1 = nn.Linear(self.shape, 64)"""
 
-        self.rnn1 = nn.LSTM(64, self.lstm_size, 1, batch_first=False, dropout=dropout)
+        self.rnn1 = nn.LSTM(self.conv2_layer, self.lstm_size, 1, batch_first=False, dropout=dropout)
         #self.rnn2 = nn.LSTM(128, 64)
 
         #self.fc1 = nn.Linear(self.lstm_size * frame_length, 256)
         #self.fc2 = nn.Linear(self.lstm_size * frame_length, 64)
         #self.fc2 = nn.Linear(1000, 500) #hidden size * number of frames
-        #self.output_layer = nn.Linear(64, 2)
+        #self.output_layer = nn.Linear(64, 1)
         self.output_layer = nn.Linear(self.lstm_size * frame_length, 1)
 
         #self.output_size = output_size
-        self.activation = torch.nn.ReLU()
+        self.activation = torch.nn.LeakyReLU()
 
         #print(f"Hidden layer size: {hidden_size}")
 
@@ -91,13 +93,13 @@ class Classifier(nn.Module):
         hidden_size = self.lstm_size
         if requires_grad:
             self.hidden1 = [
-                torch.zeros(num_layers, batch_size, hidden_size).requires_grad_(),
-                torch.zeros(num_layers, batch_size, hidden_size).requires_grad_()
+                torch.zeros(num_layers, batch_size, hidden_size).requires_grad_().to(self.device),
+                torch.zeros(num_layers, batch_size, hidden_size).requires_grad_().to(self.device)
             ]
         else:
             self.hidden1 = [
-                torch.zeros(num_layers, batch_size, hidden_size),
-                torch.zeros(num_layers, batch_size, hidden_size)
+                torch.zeros(num_layers, batch_size, hidden_size).to(self.device),
+                torch.zeros(num_layers, batch_size, hidden_size).to(self.device)
             ]
 
     def forward(self, input, detach=True):
@@ -119,7 +121,7 @@ class Classifier(nn.Module):
         output = self.activation(output)
         output = self.pool1(output)"""
         output = self.pool1(self.activation(self.bn1(self.conv1(output))))
-        output = self.pool2(self.activation(self.bn2(self.conv2(output))))
+        #output = self.pool2(self.activation(self.bn2(self.conv2(output))))
         #output = self.pool3(self.activation(self.bn3(self.conv3(output))))
 
         """output = output.view(-1) # use for flatten
@@ -137,13 +139,13 @@ class Classifier(nn.Module):
         output = output.reshape(output.shape[1], -1)
 
         if detach:
-            self.hidden1[0] = hidden1[0].detach()
-            self.hidden1[1] = hidden1[1].detach()
+            self.hidden1[0] = hidden1[0].detach().to(self.device)
+            self.hidden1[1] = hidden1[1].detach().to(self.device)
 
 
         """output = self.activation(self.fc2(output))
-        output = TF.dropout(output, self.drop_rate)"""
-
+        output = TF.dropout(output, self.drop_rate)
+        """
         output = self.output_layer(output)
 
         return output

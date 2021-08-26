@@ -16,7 +16,7 @@ RESOLUTION_2 = 224
 #utils.change_videos_fps("datasets/")
 #segment.set_up_boxes("datasets/")
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 
 composed_train = transforms.Compose([
                                 transforms.Resize((RESOLUTION_1, RESOLUTION_2)),
@@ -57,15 +57,15 @@ train_set = data_set('datasets/', composed_train, composed_test, 'datasets/label
     test_mode=False
 )"""
 
-trainer = ec.Trainer(train_set, 60, composed_train, composed_test, segment='body', early_stop=False, device=device)
-trainer2 = ec.Trainer(train_set, 60, composed_train, composed_test, segment='face', early_stop=False, device=device)
-trainer3 = ec.Trainer(train_set, 60, composed_train, composed_test, segment='', early_stop=False, device=device)
+trainer = ec.Trainer(train_set, 40, composed_train, composed_test, segment='body', early_stop=False, device=device)
+trainer2 = ec.Trainer(train_set, 40, composed_train, composed_test, segment='face', early_stop=False, device=device)
+trainer3 = ec.Trainer(train_set, 40, composed_train, composed_test, segment='', early_stop=False, device=device)
 
 
 
-trainer.LOSO(30, debug=True)
-trainer2.LOSO(30, debug=True)
-trainer3.LOSO(30, debug=True)
+trainer.LOSO(10, debug=True)
+trainer2.LOSO(10, debug=True)
+trainer3.LOSO(10, debug=True)
 
 
 
