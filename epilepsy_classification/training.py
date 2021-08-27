@@ -30,7 +30,7 @@ class Trainer:
         self.save_model = save_model
 
         if not net:
-            self.net = model.Classifier(frame_segments, dropout=0.35)
+            self.net = model.Classifier(frame_segments, dropout=0.35, device=device)
             self.net = self.net.to(device)
             self.optim = optim.Adam(self.net.parameters(), lr=0.001, weight_decay=0.0001)
             #self.scheduler = optim.lr_scheduler.CyclicLR(self.optim, base_lr=0.0001, max_lr=0.01,
@@ -74,8 +74,9 @@ class Trainer:
             x1 = x1/x2
             x2 = x2/x2"""
 
-        self.weight = torch.tensor([(x1)/x2]).to(self.device)
+        self.weight = torch.tensor([x1/x2]).to(self.device)
         #self.weight = torch.tensor([x1/x2]).to(self.device)
+
         self.criterion = nn.BCEWithLogitsLoss(pos_weight=self.weight)
 
 
@@ -128,7 +129,8 @@ class Trainer:
             self.save_dir = old_dir + f"LOSO_{self.dataset[indices[i]]['filename'][:-4]}_{self.segment}/"
             if debug:
                 print(f"Working on model LOSO_model_{self.dataset[indices[i]]['filename'][:-4]}_{self.segment}")
-            self.net = model.Classifier(self.frame_seg, dropout=0.35)
+            self.net = model.Classifier(self.frame_seg, dropout=0.35, device=self.device)
+            self.net = self.net.to(self.device)
             self.optim = optim.Adam(self.net.parameters(), lr=0.001, weight_decay=0.0001)
             indices_copy = indices.copy()
             self.train(epochs, train=indices_copy[:i] + indices_copy[i+1:], val=[indices[i]], debug=debug)
@@ -334,7 +336,7 @@ class Trainer:
                     if probs:
                         return output, loss
 
-                    answer = check_true(output, label.numpy()[0][0])
+                    answer = check_true(output, label.cpu().numpy()[0][0])
                     return answer, loss
 
                 if current_frame < end_frame:
@@ -350,12 +352,20 @@ class Trainer:
 
             if (average_res and current_frame % self.frame_seg == 0) or current_frame == end_frame:
                 torch.stack(frame_list, out=batch)
+                
+                #if batch.is_cuda is False and self.device == 'cuda':
+                 #   batch = batch.to(self.device)
 
                 batch = batch.unsqueeze(0)
+
+                if batch.is_cuda is False:
+                    batch = batch.to(self.device)
+
                 if train:
                     output = self.net(batch)
                 else:
                     output = self.net(batch, dropout=False)
+
                 frame_list.clear()
                 #loss_test = self.criterion2(output, label)
                 loss = self.criterion(output, label)
@@ -371,7 +381,7 @@ class Trainer:
                 if average_res:
                     output = output.detach()
                     torch.sigmoid(input=output, out=output)
-                    accuracies.append(output.numpy()[0])
+                    accuracies.append(output.cpu().numpy()[0])
                     losses.append(loss.item())
                     #self.net.reset_states()
                 else:
@@ -380,8 +390,9 @@ class Trainer:
                     if probs:
                         return output, loss.item()
 
-                    answer = check_true(output.numpy()[0][0], label.numpy()[0][0])
+                    answer = check_true(output.cpu().numpy()[0][0], label.cpu().numpy()[0][0])
                     return answer, loss.item()
+                del output
 
 def check_true(answer, label):
     if answer > 0.5 and label == 1:

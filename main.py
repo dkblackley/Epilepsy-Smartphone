@@ -31,7 +31,7 @@ RESOLUTION_2 = 224
 #utils.change_videos_fps("datasets/")
 #segment.set_up_boxes("datasets/")
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 
 composed_train = transforms.Compose([
                                 transforms.Resize((RESOLUTION_1, RESOLUTION_2)),
@@ -85,6 +85,7 @@ for i in range(1, 10):
                          save_diir=current_dir, save_model=False)
     trainer.LOSO(7, debug=True)
 
+
 results = []
 
 for i in range(0, 10):
@@ -94,6 +95,7 @@ for i in range(0, 10):
     #result = utils.read_from_csv(current_dir + "LOSO__RESULTS.csv", to_num=True)
 
     results.append(result)
+
 
 results = np.ndarray(results)
 results = np.average(results, axis=2)
