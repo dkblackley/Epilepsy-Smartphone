@@ -1,15 +1,26 @@
-
-from PIL import ImageDraw
+"""
+segment.py - File responsible for setting up and saving the various ROI segmentation algorithms. If it can't detect a
+box ,-[1,-1,-1,-1] is saved instead
+"""
+from PIL import ImageDraw, Image
 import segmentation.body_detect as body_detect
 import segmentation.face_detect as face_detect
 import utils
 from segmentation.seg_utils import *
 from segmentation.sort import *
-import torchvision.transforms as TF
 from tqdm import tqdm
+import cv2
+
 
 
 def make_video(frames_tracked, path):
+    """
+    makes a video given a list of frames
+    :param frames_tracked: list of frames to make a video from
+    :type frames_tracked: list
+    :param path: location to save video to
+    :type path: str
+    """
     dim = frames_tracked[0].size
     fourcc = cv2.VideoWriter_fourcc(*'FMP4')
     video_tracked = cv2.VideoWriter(path, fourcc, 10, dim)
@@ -18,33 +29,53 @@ def make_video(frames_tracked, path):
     video_tracked.release()
 
 
-def set_up_boxes(path):
+def set_up_boxes(path, device):
+    """
+    Entrypoint for the segmentation file. Cycles through all the videos in the specified path and attempts to set up
+    the bounding boxes for that video
+    :param path: path to the videos
+    :type path: str
+    :param device: device to run models on
+    :type device: str
+    """
 
     for filename in tqdm(os.listdir(path)):
-
+        # If not a video
         if filename[-4:] != '.mp4':
             continue
 
         print("\nGenerating boxes for " + filename)
-
         new_filename = filename[:-4]
+        video = cv2.VideoCapture(path + filename)
+        find_boxes(video, 'face', 12, track=True, csv=path + new_filename + '_face_boxes.csv', device=device)
 
         video = cv2.VideoCapture(path + filename)
-        find_boxes(video, 'face', 12, track=True, save='hello', csv=path + new_filename + '_face_boxes.csv')
-
-        video = cv2.VideoCapture(path + filename)
-        find_boxes(video, 'body', 12, track=True, csv=path + new_filename + '_body_boxes.csv', save='hello')
+        find_boxes(video, 'body', 12, track=True, csv=path + new_filename + '_body_boxes.csv', device=device)
 
 
 
-def find_boxes(video, segmentation, batch_size, track=True, save='', padding=[0,0,0,0], csv='', round=1):
+def find_boxes(video, segmentation, batch_size, device='cpu', track=True, save='', csv=''):
+    """
+    Main function for cycling through a video and extracting the specified region of interest
+    :param video: The video to cycle through
+    :type video: VideoCapture
+    :param segmentation: The region we want to draw boxes around, can be face or body
+    :type segmentation: str
+    :param batch_size: batch size to use
+    :type batch_size: int
+    :param track: Whether we should apply the SORT tracking algorithm to boxes
+    :type track: Bool
+    :param save: If we should save the video with bounding box added
+    :type save: Bool
+    :param csv: Where to save the bounding box to
+    :type csv: str
+    :return The list of bounding boxes
+    :rtype list
+    """
 
-    transform = TF.ToTensor()
-    batch = torch.zeros(0)
     frame_list = []
     frame_loop = 0
     all_boxes = []
-    total_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
     end = False
     if track:
         mot_tracker = Sort()
@@ -53,16 +84,13 @@ def find_boxes(video, segmentation, batch_size, track=True, save='', padding=[0,
         frames_tracked = []
 
     while (True):
-
         # Capture frame-by-frame
         ret, frame = video.read()
-        batch = torch.empty(0)
         frame_loop += 1
 
         try:
             frame = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
             frame_list.append(frame)
-            #frame.show()
         except:
             if not end:
                 end = True
@@ -73,22 +101,12 @@ def find_boxes(video, segmentation, batch_size, track=True, save='', padding=[0,
         if frame_loop % batch_size == 0:
 
             if segmentation == "body":
-                boxes = body_detect.detect_body("cpu", frame_list, display=False, debug=False, save=False)
+                boxes = body_detect.detect_body(device, frame_list, debug=False)
             else:
-                boxes = face_detect.find_face("cpu", frame_list, display=False, debug=False, save=False)
+                boxes = face_detect.find_face(device, frame_list, display=False, debug=False)
 
             if track:
-
-                """img_size = 224
-
-                pad_x = max(frame.shape[0] - frame.shape[1], 0) * (img_size / max(frame.shape))
-                pad_y = max(frame.shape[1] - frame.shape[0], 0) * (img_size / max(frame.shape))
-                unpad_h = img_size - pad_y
-                unpad_w = img_size - pad_x
-
-                padding = [unpad_h, unpad_w, pad_x, pad_y]"""
-
-                boxes = apply_sort(boxes, mot_tracker, frame, round, pad=padding)
+                boxes = apply_sort(boxes, mot_tracker)
 
             else:
                 new_box = []
@@ -118,9 +136,6 @@ def find_boxes(video, segmentation, batch_size, track=True, save='', padding=[0,
                     frame = frame.crop(box)
                     frame.show()"""
 
-                    # plt.imshow(frame_draw, aspect="auto")
-                    # plt.show()
-
             frame_list = []
 
     # When everything done, release the capture
@@ -142,4 +157,4 @@ def find_boxes(video, segmentation, batch_size, track=True, save='', padding=[0,
     if save:
         make_video(frames_tracked, save)
 
-
+    return all_boxes

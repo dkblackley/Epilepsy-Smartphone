@@ -1,14 +1,3 @@
-# -*- coding: utf-8 -*-
-
-
-"""
-This file contains the following functions to read arguments from a configurations file and command line arguments.
-    load_arguments - Function to load arguments from a configurations file and command line arguments.
-    print_arguments - Function to print the name and value for each loaded argument.
-"""
-
-
-# Built-in/Generic Imports
 import sys
 from configparser import ConfigParser
 from argparse import ArgumentParser, Namespace, ArgumentTypeError

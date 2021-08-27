@@ -24,10 +24,17 @@ class data_set(Dataset):
     """
     def __init__(self, path_to_data, train_transforms, test_transforms, labels_path, segmentation=None):
         """
-        Init responsible for holding the list of filenames from which you can fetch data from
-        :param root_dir: path to the video files
-        :param labels_path: path to the filenames and labels
-        :param transforms: transforms to be applied to the data
+        Taken and adapted from an older file I used to dynamically load images
+        :param path_to_data: Path to the data
+        :type path_to_data: str
+        :param train_transforms: Transforms for training images (unused)
+        :type train_transforms: ComposedTransforms
+        :param test_transforms: Transforms for testing images (unused)
+        :type test_transforms: ComposedTransforms
+        :param labels_path: path to the labels csv file
+        :type labels_path: str
+        :param segmentation: whether to return face, body or no bounding boxes
+        :type segmentation: str
         """
 
         self.root_dir = path_to_data
@@ -48,7 +55,7 @@ class data_set(Dataset):
 
     def __getitem__(self, index):
         """
-        Dynamically loads and returns an image at specified index with label attached.
+        Dynamically loads and returns a video at specified index with label attached.
         If there is no label then it returns False as a label
         :param index: index of image to load
         :return: dictionary containing image and label
@@ -59,7 +66,6 @@ class data_set(Dataset):
         else:
             file_name = self.labels[index][0]
         full_path = os.path.join(self.root_dir, file_name)
-        # Playing video from file:
         video = cv2.VideoCapture(full_path)
 
         face_boxes = utils.read_from_csv((full_path[:-4] + '_face_boxes.csv'), to_num=True)
@@ -68,7 +74,6 @@ class data_set(Dataset):
         if self.labels is False:
             label = False
         else:
-            #label = self.get_class_name(self.labels[index][1:])
             label = self.labels[index][1:].astype(np.float)
             label = np.argmax(label)
             label = torch.tensor(float(label))
@@ -97,7 +102,7 @@ class data_set(Dataset):
 
     def get_class_name(self, numbers):
         """
-        returns the class names based on the number, i.e. 0 = MEL, 1 = NV... etc.
+        returns the class names based on the number, i.e. 0 = MIMIC, 1 = INF... etc.
         :param numbers: a list of values, where one number is 1.0 to represent the class
         :return:
         """
@@ -106,47 +111,6 @@ class data_set(Dataset):
 
     def add_transforms(self, transforms):
         self.transforms = transforms
-
-
-class RandomCrop(object):
-    # Unused
-    """
-    Class used to randomly crop the image
-    """
-
-    def __init__(self, output_size):
-        """
-        Init takes in the desired crop size
-        :param output_size:
-        """
-
-        # If output size is one parameter, make it a tuple of two of the same parameters
-        assert isinstance(output_size, (int, tuple))
-        if isinstance(output_size, int):
-            self.output_size = (output_size, output_size)
-        else:
-            assert len(output_size) == 2
-            self.output_size = output_size
-
-    def __call__(self, image):
-        """
-        Randomly crops off the side of the image to the specified size
-        :param image: Image to be cropped
-        :return: the cropped image
-        """
-
-        image = np.asarray(image)
-        height, width = image.shape[:2]
-        new_height, new_width = self.output_size
-
-        top = np.random.randint(0, height - new_height)
-        left = np.random.randint(0, width - new_width)
-
-        image = image[top: top + new_height, left: left + new_width]
-
-        image = Image.fromarray(image, 'RGB')
-
-        return image
 
 
 class RemoveBorders(object):

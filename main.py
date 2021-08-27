@@ -1,10 +1,7 @@
-import numpy as np
 
 import utils
-from video_dataset import  data_set
+from video_dataset import data_set
 import epilepsy_classification.training as ec
-import segmentation.segment as segment
-import video_dataset_2
 import config
 
 
@@ -19,8 +16,7 @@ __status__     = "Development"
 
 from torchvision import transforms
 import torch
-import matplotlib.pyplot as plt
-from tqdm import tqdm
+import numpy as np
 
 
 #utils.make_labels('temp_set/')

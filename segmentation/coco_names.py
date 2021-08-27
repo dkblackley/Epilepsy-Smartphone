@@ -1,3 +1,7 @@
+"""
+coco_names.py, used for body detection
+"""
+
 COCO_INSTANCE_CATEGORY_NAMES = [
     '__background__', 'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus',
     'train', 'truck', 'boat', 'traffic light', 'fire hydrant', 'N/A', 'stop sign',

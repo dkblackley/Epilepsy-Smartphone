@@ -1,9 +1,18 @@
 """
-File responsible for holding the model, uses efficientnet
+model.py - File responsible for holding the model
 """
 import torch
 import torch.nn as nn
 from torch.nn import functional as TF
+
+__author__     = ["Daniel Blackley"]
+__copyright__  = "Copyright 2021, Epilepsy-Smartphone"
+__credits__    = ["Daniel Blackley", "Stephen McKenna", "Emanuele Trucco"]
+__licence__    = "MIT"
+__version__    = "0.0.1"
+__maintainer__ = "Daniel Blackley"
+__email__      = "dkblackley@gmail.com"
+__status__     = "Development"
 
 
 class Classifier(nn.Module):
@@ -18,13 +27,15 @@ class Classifier(nn.Module):
         :param frame_length: number of frames for the LSTM layer
         :type frame_length: int
         :param dropout: Drop rate for the network
-        :type dropout: int
+        :type dropout: float
+        :param device: device to place LSTM hidden layers on
+        :type device: str
         """
         super(Classifier, self).__init__()
         self.drop_rate = dropout
         self.lstm_size = 64
         self.conv_output = 64
-
+        self.device = device
 
         self.conv = nn.Conv2d(3, self.conv_output, kernel_size=(3, 3), padding=(1,1))
         self.bn = nn.BatchNorm2d(64)
@@ -62,51 +73,33 @@ class Classifier(nn.Module):
     def forward(self, input, detach=True, dropout=True):
         """
         forward pass through the network
-        :param input:
-        :type input:
-        :param detach:
-        :type detach:
-        :param dropout:
-        :type dropout:
-        :return:
-        :rtype:
+        :param input: the input vector, expected to be of size (batch size, frame length, image size 1, image size 2)
+        :type input: Pytorch Tensor
+        :param detach: Whether or not to detach and use the hidden layers again for the next input.
+        Usually only useful for validation/testing
+        :type detach: Bool
+        :param dropout: Whether dropout should be applied
+        :type dropout: Bool
+        :return: The single value that is output from the network. < 0.5 implies spasms, > 0.5 implies mimics
+        :rtype: Pytorch Tensor
         """
-        batch_size, timesteps, C, H, W = input.size()
 
-        # batch_size = input.size(0)
-        #output = self.pool1(self.activation(self.bn1(self.conv1(output))))
+        batch_size, timesteps, C, H, W = input.size() # Use these for changing Tensor size
 
-        output = input.view(batch_size * timesteps, C, H, W)
+        output = input.view(batch_size * timesteps, C, H, W) # instead of 1 batch of 60 frames make 60 batches
 
-        """output = self.conv1(output)
-        output = self.bn1(output)
-        output = self.activation(output)
-        output = self.pool1(output)"""
-        output = self.pool1(self.activation(self.bn1(self.conv1(output))))
-        #output = self.pool2(self.activation(self.bn2(self.conv2(output))))
-        #output = self.pool3(self.activation(self.bn3(self.conv3(output))))
-
-        """output = output.view(-1) # use for flatten
-        output = output.unsqueeze(0) # use for flatten
-        output = self.activation(self.fc1(output))
-        TF.dropout(output, self.drop_rate)"""
-
-        """output = output.view(-1, self.shape)
-        output = output.unsqueeze(0)
-        output = self.activation(self.fc1(output))
-        if dropout:
-            output = TF.dropout(output, self.drop_rate)"""
-
-        output = output.view(timesteps, batch_size, -1)
+        output = self.pool(self.activation(self.bn(self.conv(output))))
+        output = output.view(timesteps, batch_size, -1) # Change back to 1 batch of 60 frames
         output, hidden1 = self.rnn1(output, self.hidden1)
+
         if dropout:
             output = TF.dropout(output, self.drop_rate)
+
         output = output.reshape(output.shape[1], -1)
 
         if detach:
             self.hidden1[0] = hidden1[0].detach().to(self.device)
             self.hidden1[1] = hidden1[1].detach().to(self.device)
-
 
         if dropout:
             output = TF.dropout(output, self.drop_rate)
