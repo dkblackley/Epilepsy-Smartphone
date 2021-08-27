@@ -182,7 +182,7 @@ def num_boxes_greater_than_ratio(boxes, debug=False, ratio=0.8):
 def save_results(path, losses, accuracies, loss_filename="losses", accuracry_filname="accuracy", debug=False):
 
     if not os.path.isdir(path):
-        os.mkdir(path)
+        os.makedirs(path)
     if debug:
         print(f"Saving to {path + loss_filename}.csv")
     write_to_csv(path + f"{loss_filename}.csv", losses)

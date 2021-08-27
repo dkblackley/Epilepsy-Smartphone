@@ -2,11 +2,8 @@
 from tqdm import tqdm
 import random
 import cv2
-import csv
-import torch
 import torch.optim as optim
-import numpy as np
-from PIL import Image, ImageDraw
+from PIL import Image
 import epilepsy_classification.model as model
 import torch.nn as nn
 import utils
@@ -15,12 +12,13 @@ import torch
 class Trainer:
 
     def __init__(self, dataset, frame_segments, tr_transforms, te_transforms, net=False, segment='', save_diir="models/",
-                 optimizer=False, threshold=0.75, early_stop=True, device='cpu'):
+                 optimizer=False, threshold=0.75, early_stop=True, device='cpu', save_model=True, best_LOSO=False):
 
         self.dataset = dataset
         self.frame_seg = frame_segments
-        self.criterion = nn.BCEWithLogitsLoss(reduction='none')
-        self.criterion2 = nn.BCEWithLogitsLoss()
+        self.criterion = nn.BCEWithLogitsLoss()
+        #self.criterion = nn.HingeEmbeddingLoss()
+        #self.criterion2 = nn.BCEWithLogitsLoss()
         self.weight = torch.tensor([1.0, 1.0])
         self.tr_transforms = tr_transforms
         self.te_transforms = te_transforms
@@ -29,6 +27,7 @@ class Trainer:
         self.threshold = threshold
         self.early_stop = early_stop
         self.device = device
+        self.save_model = save_model
 
         if not net:
             self.net = model.Classifier(frame_segments, dropout=0.35)
@@ -41,6 +40,7 @@ class Trainer:
             self.net = self.net.to(device)
             self.optim = optimizer
             self.optim = self.optim.to(device)
+        self.best_LOSO_model = None
 
     def set_save_dir(self, new_dir):
         self.save_dir = new_dir
@@ -55,11 +55,11 @@ class Trainer:
             video = data['video']
             segment_length = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
             if label == 0:
-                x1 += segment_length
-                #x1 += 1
+                #x1 += segment_length
+                x1 += 1
             else:
-                x2 += segment_length
-                #x2 += 1
+                #x2 += segment_length
+                x2 += 1
 
         """x1 = 1/x1
         x2 = 1/x2
@@ -74,8 +74,9 @@ class Trainer:
             x1 = x1/x2
             x2 = x2/x2"""
 
-        self.weight = torch.tensor([x1/x2]).to(self.device)
-        self.criterion2 = nn.BCEWithLogitsLoss(pos_weight=self.weight)
+        self.weight = torch.tensor([(x1)/x2]).to(self.device)
+        #self.weight = torch.tensor([x1/x2]).to(self.device)
+        self.criterion = nn.BCEWithLogitsLoss(pos_weight=self.weight)
 
 
     def LOSO(self, epochs, shuffle=True, debug=False):
@@ -91,15 +92,18 @@ class Trainer:
             data = self.dataset[indices[i]]
 
             #TODO remove videos with less than 80% detection
-            if self.segment and not utils.num_boxes_greater_than_ratio(data[self.segment], ratio=self.threshold, debug=debug):
+
+            if self.segment == 'face' and data['filename'] == 'mimic7.mp4':
+                if debug:
+                    print(f"{data['filename']} Has been removed\n")
+                indices.pop(i)
+            elif self.segment and not utils.num_boxes_greater_than_ratio(data[self.segment], ratio=self.threshold, debug=debug):
                 if debug:
                     print(f"{data['filename']} Has been removed\n")
                 indices.pop(i)
             elif self.segment:
                 boxes = data[self.segment]
                 num_valid = 0
-                num_valid_2 = 0
-                cap = len(boxes) - self.frame_seg
                 for box in boxes:
                     if sum(box) > 0:
                         num_valid += 1
@@ -118,8 +122,10 @@ class Trainer:
 
         results = [["filename", "MIMIC", "INF"]]
 
+        old_dir = self.save_dir
+
         for i in range(0, len(indices)):
-            self.save_dir = f"models/LOSO_{self.dataset[indices[i]]['filename'][:-4]}_{self.segment}/"
+            self.save_dir = old_dir + f"LOSO_{self.dataset[indices[i]]['filename'][:-4]}_{self.segment}/"
             if debug:
                 print(f"Working on model LOSO_model_{self.dataset[indices[i]]['filename'][:-4]}_{self.segment}")
             self.net = model.Classifier(self.frame_seg, dropout=0.35)
@@ -129,7 +135,7 @@ class Trainer:
 
             results.append(self.test([indices[i]], debug)[0])
 
-        utils.write_to_csv(f"models/LOSO_{self.segment}_RESULTS.csv", results)
+        utils.write_to_csv(old_dir + f"LOSO_{self.segment}_RESULTS.csv", results)
 
 
 
@@ -150,9 +156,6 @@ class Trainer:
         for i in range(0, epochs):
 
             print(f"EPOCH {i} of {epochs}")
-
-            if i == 29:
-                print("HERE")
 
             if shuffle:
                 random.shuffle(val)
@@ -212,13 +215,14 @@ class Trainer:
             v_overall_accuracy.append(sum(accuracies) / len(accuracies))
 
             if (sum(losses)/len(losses)) <= min(v_overall_loss) and self.early_stop:
-                utils.save_model(self.net, self.optim, self.save_dir + "best_loss/")
+                if self.save_model:
+                    utils.save_model(self.net, self.optim, self.save_dir + "best_loss/")
                 utils.save_results(self.save_dir + "best_loss/", [v_overall_loss], [v_overall_accuracy],
                                    loss_filename="val_losses", accuracry_filname="val_accuracy")
                 utils.save_results(self.save_dir + "best_loss/", [t_overall_loss], [t_overall_accuracy])
 
-
-            utils.save_model(self.net, self.optim, self.save_dir + "model/")
+            if self.save_model:
+                utils.save_model(self.net, self.optim, self.save_dir + "model/")
             utils.save_results(self.save_dir + "model/", [v_overall_loss], [v_overall_accuracy],
                                loss_filename="val_losses", accuracry_filname="val_accuracy", debug=debug)
             utils.save_results(self.save_dir + "model/", [t_overall_loss], [t_overall_accuracy], debug=debug)
@@ -274,9 +278,18 @@ class Trainer:
         frame_count = 0
 
         frames_to_get = random.randrange(self.frame_seg, segment_length, self.frame_seg)
+
+        if segment_length < 60:
+            print("here")
+
         start_frame = frames_to_get - self.frame_seg
         end_frame = frames_to_get
         current_frame = 0
+
+        """if filename == "mimic7.mp4":
+            print("HERE")"""
+
+
 
         while (True):
 
@@ -285,6 +298,8 @@ class Trainer:
             batch = torch.empty(0)
 
             try:
+                """if not frame:
+                    print("HERE")"""
                 frame = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
 
                 if current_frame < start_frame and not average_res:
@@ -325,6 +340,9 @@ class Trainer:
                 if current_frame < end_frame:
                     if debug:
                         print(e)
+                        print(filename)
+                    #video.release()
+                    #cv2.destroyAllWindows()
                     return -1
 
             current_frame += 1
@@ -334,7 +352,10 @@ class Trainer:
                 torch.stack(frame_list, out=batch)
 
                 batch = batch.unsqueeze(0)
-                output = self.net(batch)
+                if train:
+                    output = self.net(batch)
+                else:
+                    output = self.net(batch, dropout=False)
                 frame_list.clear()
                 #loss_test = self.criterion2(output, label)
                 loss = self.criterion(output, label)

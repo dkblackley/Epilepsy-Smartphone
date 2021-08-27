@@ -1,12 +1,27 @@
+import numpy as np
+
 import utils
-from torchvision import transforms
-import torch
 from video_dataset import  data_set
-import matplotlib.pyplot as plt
-from tqdm import tqdm
 import epilepsy_classification.training as ec
 import segmentation.segment as segment
 import video_dataset_2
+import config
+
+
+__author__     = ["Daniel Blackley", "Jacob Carse"]
+__copyright__  = "Copyright 2021, Cost-Sensitive Selective Classification for Skin Lesions"
+__credits__    = ["Daniel Blackley", "Jacob Carse", "Stephen McKenna"]
+__licence__    = "MIT"
+__version__    = "0.0.1"
+__maintainer__ = "Daniel Blackley"
+__email__      = "dkblackley@dundee.ac.uk"
+__status__     = "Development"
+
+from torchvision import transforms
+import torch
+import matplotlib.pyplot as plt
+from tqdm import tqdm
+
 
 #utils.make_labels('temp_set/')
 
@@ -35,7 +50,7 @@ composed_test = transforms.Compose([
                                 transforms.Resize((RESOLUTION_1, RESOLUTION_2)),
                                 transforms.ToTensor(),
                                 #transforms.ColorJitter(brightness=0.1, contrast=0.1),
-                                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+                                transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
                                 # call helper.get_mean_and_std(data_set) to get mean and std
                                 #transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
                                ])
@@ -57,21 +72,47 @@ train_set = data_set('datasets/', composed_train, composed_test, 'datasets/label
     test_mode=False
 )"""
 
-trainer = ec.Trainer(train_set, 60, composed_train, composed_test, segment='body', early_stop=False, device=device)
-trainer2 = ec.Trainer(train_set, 60, composed_train, composed_test, segment='face', early_stop=False, device=device)
-trainer3 = ec.Trainer(train_set, 60, composed_train, composed_test, segment='', early_stop=False, device=device)
+for i in range(1, 10):
+    current_dir = f"models/{i}-FOLD_MODEL/"
+
+    trainer = ec.Trainer(train_set, 60, composed_train, composed_test, segment='body', early_stop=False, device=device,
+                         save_diir=current_dir, save_model=False)
+    trainer.LOSO(7, debug=True)
+    trainer = ec.Trainer(train_set, 60, composed_train, composed_test, segment='', early_stop=False, device=device,
+                         save_diir=current_dir, save_model=False)
+    trainer.LOSO(7, debug=True)
+    trainer = ec.Trainer(train_set, 60, composed_train, composed_test, segment='face', early_stop=False, device=device,
+                         save_diir=current_dir, save_model=False)
+    trainer.LOSO(7, debug=True)
+
+results = []
+
+for i in range(0, 10):
+    current_dir = f"models/{i}-FOLD_MODEL/"
+    result = utils.read_from_csv(current_dir + "LOSO_face_RESULTS.csv", to_num=True)
+    #result = utils.read_from_csv(current_dir + "LOSO_body_RESULTS.csv", to_num=True)
+    #result = utils.read_from_csv(current_dir + "LOSO__RESULTS.csv", to_num=True)
+
+    results.append(result)
+
+results = np.ndarray(results)
+results = np.average(results, axis=2)
 
 
 
-trainer.LOSO(30, debug=True)
-trainer2.LOSO(30, debug=True)
-trainer3.LOSO(30, debug=True)
-
-
+utils.write_to_csv("models/averaged_face_results.csv", results)
+#utils.write_to_csv("models/averaged_body_results.csv", results)
+#utils.write_to_csv("models/averaged_results.csv", results)
 
 #trainer.train(10)
 
 
 
 #train_data = dataset.data_set("datasets/", composed_train, "datasets/labels.csv")
-#train_set = torch.utils.data.DataLoader(train_data, batch_size=BATCH_SIZE, sampler=weighted_train_sampler, shuffle=False)
+#train_set = torch.utils.data.DataLoader(train_data, batch_size=BATCH_SIZE, sampler=weighted_train_sampler, shuffle=Fals
+
+if __name__ == "__main__":
+    # Loads the arguments from a config file and command line arguments.
+    description = "Cost-Sensitive Selective Classification for Skin Lesions Using Bayesian Inference"
+    arguments = config.load_arguments(description)
+

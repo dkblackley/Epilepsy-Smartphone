@@ -1,6 +1,5 @@
-import torch
-from PIL import Image, ImageDraw
-import mmcv, cv2
+
+from PIL import ImageDraw
 import segmentation.body_detect as body_detect
 import segmentation.face_detect as face_detect
 import utils
@@ -9,13 +8,11 @@ from segmentation.sort import *
 import torchvision.transforms as TF
 from tqdm import tqdm
 
-def return_ROI(frames):
-    pass
 
-def make_video(video):
+def make_video(frames_tracked, path):
     dim = frames_tracked[0].size
     fourcc = cv2.VideoWriter_fourcc(*'FMP4')
-    video_tracked = cv2.VideoWriter('video_tracked2.mp4', fourcc, 10, dim)
+    video_tracked = cv2.VideoWriter(path, fourcc, 10, dim)
     for frame in frames_tracked:
         video_tracked.write(cv2.cvtColor(np.array(frame), cv2.COLOR_RGB2BGR))
     video_tracked.release()
@@ -23,14 +20,9 @@ def make_video(video):
 
 def set_up_boxes(path):
 
-    i = 0
-
     for filename in tqdm(os.listdir(path)):
 
         if filename[-4:] != '.mp4':
-            continue
-
-        if filename != "spasm8.mp4" and filename != "mimic3.mp4":
             continue
 
         print("\nGenerating boxes for " + filename)
@@ -148,11 +140,6 @@ def find_boxes(video, segmentation, batch_size, track=True, save='', padding=[0,
         utils.write_to_csv(csv, new_boxes)
 
     if save:
+        make_video(frames_tracked, save)
 
-        dim = frames_tracked[0].size
-        fourcc = cv2.VideoWriter_fourcc(*'FMP4')
-        video_tracked = cv2.VideoWriter(save, fourcc, 10, dim)
-        for frame in frames_tracked:
-            video_tracked.write(cv2.cvtColor(np.array(frame), cv2.COLOR_RGB2BGR))
-        video_tracked.release()
 
