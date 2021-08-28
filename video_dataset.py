@@ -22,7 +22,7 @@ class data_set(Dataset):
     """
     class responsible for handling and dynamically retreiving data from the data set
     """
-    def __init__(self, path_to_data, train_transforms, test_transforms, labels_path, segmentation=None):
+    def __init__(self, path_to_data, train_transforms, test_transforms, labels_path):
         """
         Taken and adapted from an older file I used to dynamically load images
         :param path_to_data: Path to the data
@@ -33,8 +33,6 @@ class data_set(Dataset):
         :type test_transforms: ComposedTransforms
         :param labels_path: path to the labels csv file
         :type labels_path: str
-        :param segmentation: whether to return face, body or no bounding boxes
-        :type segmentation: str
         """
 
         self.root_dir = path_to_data
@@ -43,7 +41,6 @@ class data_set(Dataset):
         self.file_names.pop(0)
         self.tr_transforms = train_transforms
         self.te_transforms = test_transforms
-        self.segmentation = segmentation
 
         self.labels = pd.read_csv(labels_path)
         self.classes = self.labels.columns[1:3].values

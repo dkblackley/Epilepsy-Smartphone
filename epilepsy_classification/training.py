@@ -29,8 +29,8 @@ class Trainer:
                  save_dir="models/", optimizer=False, threshold=0.75, early_stop=True, device='cpu', save_model=True):
         """
         Init method, deals with loading model and placing it on the correct device
-        :param dataset: Path to where the data can be found
-        :type dataset: str
+        :param dataset: The pytorch data loader
+        :type dataset: dataloader
         :param frame_segments: the number of frames to load from the video
         :type frame_segments: int
         :param tr_transforms: Transforms to apply to the training images
@@ -62,7 +62,10 @@ class Trainer:
         self.weight = torch.tensor([1.0, 1.0]).to(device)
         self.tr_transforms = tr_transforms
         self.te_transforms = te_transforms
-        self.segment = segment
+        if segment == "none":
+            self.segment = ''
+        else:
+            self.segment = segment
         self.save_dir = save_dir
         self.threshold = threshold
         self.early_stop = early_stop
@@ -107,22 +110,17 @@ class Trainer:
         self.weight = torch.tensor([x1/x2]).to(self.device)
         self.criterion = nn.BCEWithLogitsLoss(pos_weight=self.weight)
 
-
-    def LOSO(self, epochs, debug=False):
+    def filter_bad_indices(self, indices, debug=False):
         """
-        Removes only a single video for validation while training on the remaining videos. Also known as LOSO validation
-        :param epochs: number of epochs to train for
-        :type epochs: 7
-        :param debug: Whether or not to print debug messages
+        Removes bounding boxes that don't pass the threshold
+        :param indices: indices to search through
+        :type indices: list
+        :param debug: Whether we should print debug messages
         :type debug: Bool
+        :return: the new indices
+        :rtype: list
         """
-
-        indices = [i for i in range(0, len(self.dataset))]
         i = 0
-
-        if debug:
-            print(f"{len(indices)} number of videos before purge")
-
         while i < len(indices):
             data = self.dataset[indices[i]]
 
@@ -155,6 +153,24 @@ class Trainer:
                     i = i + 1
             else:
                 i = i + 1
+
+        return indices
+
+    def LOSO(self, epochs, debug=False):
+        """
+        Removes only a single video for validation while training on the remaining videos. Also known as LOSO validation
+        :param epochs: number of epochs to train for
+        :type epochs: 7
+        :param debug: Whether or not to print debug messages
+        :type debug: Bool
+        """
+
+        indices = [i for i in range(0, len(self.dataset))]
+
+        if debug:
+            print(f"{len(indices)} number of videos before purge")
+
+        indices = self.filter_bad_indices(indices, debug=debug)
 
         if debug:
             print(f"{len(indices)} remain after purge")
@@ -207,8 +223,11 @@ class Trainer:
         # Set the train indices if not specified
         if train is None:
             indices_original = [i for i in range(0, len(self.dataset))]
+            indices_original = self.filter_bad_indices(indices_original, debug=debug)
             train = indices_original[int(len(indices_original) * split):].copy()
             val = indices_original[:int(len(indices_original) * split)].copy()
+
+
 
         # Weight our loss function based on given train indices
         self.set_weights(train)
@@ -229,6 +248,9 @@ class Trainer:
                 data = self.dataset[current]
                 self.net.reset_states()
                 output = -1
+
+                if self.segment == 'face' and data['filename'] == 'mimic7.mp4':
+                    continue
 
                 # If unlucky, we can cut out more videos without bounding boxes than frame segments specified,
                 # if this occurs try again.

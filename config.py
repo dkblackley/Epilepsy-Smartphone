@@ -67,31 +67,35 @@ def load_arguments(description: str) -> Namespace:
                                  help="String representing the file path to the config file.")
     argument_parser.add_argument("--debug", type=string_to_boolean,
                                  default=config_parser["standard"]["debug"],
-                                 help="Directory path for where the logs will be saved.")
+                                 help="Whether or not debug messages should be printed.")
     argument_parser.add_argument("--model_dir", type=str,
                                  default=config_parser["standard"]["model_dir"],
                                  help="Directory path for where the trained models will be saved.")
     argument_parser.add_argument("--cuda", type=string_to_boolean,
                                  default=string_to_boolean(config_parser["standard"]["cuda"]),
                                  help="Boolean if a CUDA device should be used if available.")
+    argument_parser.add_argument("--setup", type=string_to_boolean,
+                                 default=string_to_boolean(config_parser["standard"]["setup"]),
+                                 help="If true, generate the bounding boxes for the videos")
 
 
     # Training Arguments
     argument_parser.add_argument("--epochs", type=int,
                                  default=int(config_parser["training"]["epochs"]),
-                                 help="Integer for the number of training epochs to perform.")
-    argument_parser.add_argument("--learning_rate", type=float,
-                                 default=float(config_parser["training"]["learning_rate"]),
-                                 help="Float to decide the learning rate of the Adam optimiser.")
+                                 help="Integer for the number of training epochs to perform." +
+                                      "models to make.")
     argument_parser.add_argument("--dataset_dir", type=str,
                                  default=config_parser["training"]["dataset_dir"],
                                  help="Directory path for the location of the dataset.")
     argument_parser.add_argument("--validation_split", type=float,
-                                 default=string_to_boolean(config_parser["training"]["val_split"]),
+                                 default=float(config_parser["training"]["validation_split"]),
                                  help="Floating point value for the percentage of data used for validation.")
-    argument_parser.add_argument("--segment", type=float,
+    argument_parser.add_argument("--segment", type=str,
                                  default=str(config_parser["training"]["segment"]),
                                  help="The ROI to segment")
+    argument_parser.add_argument("--LOSO", type=string_to_boolean,
+                                 default=config_parser["training"]["LOSO"],
+                                 help="Whether or not to perform LOSO validation")
 
     # Returns the argument parser.
     return argument_parser.parse_args()

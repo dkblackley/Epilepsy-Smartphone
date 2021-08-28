@@ -1,4 +1,4 @@
-
+import segmentation.segment
 import utils
 from video_dataset import data_set
 import epilepsy_classification.training as ec
@@ -19,49 +19,8 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 
-filenames = ['mimic', 'mimic2', 'mimic3', 'mimic4', 'mimic5', 'mimic6', 'mimic7', 'spasm', 'spasm2', 'spasm3', 'spasm4',
-             'spasm5', 'spasm6', 'spasm7', 'spasm8']
-#filenames = ['mimic2', 'mimic3', 'mimic4', 'mimic5', 'mimic6', 'mimic7', 'spasm', 'spasm2', 'spasm3', 'spasm4',
-#             'spasm5', 'spasm6', 'spasm7', 'spasm8']
-accuracies = [
-    [0, 40, 40, 50, 70, 80, 20, 90, 40, 50, 50, 70, 70, 50, 30], # Body
-    [0, 0, 40, 70, 90, 0, 0, 0, 50, 40, 50, 50, 20, 30, 30], # Face
-    [40, 50, 30, 70, 90, 60, 20, 50, 40, 40, 20, 50, 40, 80, 50], # None
-
-]
-
-title = "File accuracies for body segmentation"
-
-fig = plt.figure()
-ax = fig.add_axes([0.1,0.1,1,1])
-ax.bar(filenames, accuracies[0])
-plt.show()
-
-
-data = [[30, 25, 50, 20],
-[40, 23, 51, 17],
-[35, 22, 45, 19]]
-X = np.arange(len(filenames))
-
-fig = plt.figure()
-ax = fig.add_axes([0, 0, 1, 1])
-
-for i in filenames:
-    ax.bar(i, accuracies[0], color = 'b', width = 0.1)
-    ax.bar(i, accuracies[1], color = 'g', width = 0.1)
-    ax.bar(i, accuracies[2], color = 'r', width = 0.1)
-
-plt.show()
-
-#utils.make_labels('temp_set/')
-
 RESOLUTION_1 = 224
 RESOLUTION_2 = 224
-
-#utils.change_videos_fps("datasets/")
-#segment.set_up_boxes("datasets/")
-
-device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 
 composed_train = transforms.Compose([
                                 transforms.Resize((RESOLUTION_1, RESOLUTION_2)),
@@ -69,40 +28,22 @@ composed_train = transforms.Compose([
                                 transforms.ColorJitter(brightness=0.1, contrast=0.1, hue=0.1),
                                 transforms.RandomErasing(p=0.2, scale=(0.001, 0.005)),
                                 transforms.RandomErasing(p=0.2, scale=(0.001, 0.005)),
-                                #transforms.RandomErasing(p=0.2, scale=(0.001, 0.005)),
-                                #transforms.RandomErasing(p=0.2, scale=(0.001, 0.005)),
-                                #transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-                                # call helper.get_mean_and_std(data_set) to get mean and std
                                 transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
                                ])
 
 composed_test = transforms.Compose([
                                 transforms.Resize((RESOLUTION_1, RESOLUTION_2)),
                                 transforms.ToTensor(),
-                                #transforms.ColorJitter(brightness=0.1, contrast=0.1),
                                 transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
-                                # call helper.get_mean_and_std(data_set) to get mean and std
-                                #transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
                                ])
 
 #print(utils.make_results_LATEX())
 
-#labels = utils.read_from_csv("datasets/labels.csv")
-#utils.change_into_frames("datasets/", "datasets/", labels)
 
-train_set = data_set('datasets/', composed_train, composed_test, 'datasets/labels.csv', segmentation=None)
+#train_set = data_set('datasets/', composed_train, composed_test, 'datasets/labels.csv', segmentation=None)
 #train_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=2, shuffle=True, num_workers=4)
-"""train_loader = video_dataset_2.VideoFrameDataset(
-    root_path="datasets/",
-    annotationfile_path="annotation_file",
-    num_segments=10,
-    frames_per_segment=7,
-    imagefile_template='img_{:05d}.jpg',
-    transform=None,
-    random_shift=True,
-    test_mode=False
-)"""
 
+"""
 for i in range(1, 10):
     current_dir = f"models/{i}-FOLD_MODEL/"
 
@@ -142,10 +83,41 @@ utils.write_to_csv("models/averaged_face_results.csv", results)
 
 
 #train_data = dataset.data_set("datasets/", composed_train, "datasets/labels.csv")
-#train_set = torch.utils.data.DataLoader(train_data, batch_size=BATCH_SIZE, sampler=weighted_train_sampler, shuffle=Fals
+#train_set = torch.utils.data.DataLoader(train_data, batch_size=BATCH_SIZE, sampler=weighted_train_sampler, shuffle=Fals"""
 
 if __name__ == "__main__":
     # Loads the arguments from a config file and command line arguments.
     description = "Cost-Sensitive Selective Classification for Skin Lesions Using Bayesian Inference"
     arguments = config.load_arguments(description)
+
+    train_set = data_set(arguments.dataset_dir, composed_train, composed_test, arguments.dataset_dir + 'labels.csv')
+
+    if arguments.cuda and torch.cuda.is_available():
+        device = 'cuda'
+    else:
+        device = 'cpu'
+
+    if arguments.setup:
+        segmentation.segment.set_up_boxes(arguments.dataset_dir, device)
+
+    if arguments.LOSO:
+        for i in range(0, 10):
+            current_dir = arguments.model_dir + f"{i}-FOLD_MODEL/"
+
+            trainer = ec.Trainer(train_set, 60, composed_train, composed_test, segment=arguments.segment, early_stop=False,
+                                 device=device, save_dir=current_dir, save_model=False)
+            trainer.LOSO(arguments.epochs, debug=arguments.debug)
+            trainer = ec.Trainer(train_set, 60, composed_train, composed_test, segment=arguments.segment, early_stop=False,
+                                 device=device, save_dir=current_dir, save_model=False)
+            trainer.LOSO(arguments.epochs, debug=arguments.debug)
+            trainer = ec.Trainer(train_set, 60, composed_train, composed_test, segment=arguments.segment, early_stop=False,
+                                 device=device, save_dir=current_dir, save_model=False)
+            trainer.LOSO(arguments.epochs, debug=arguments.debug)
+    else:
+        trainer = ec.Trainer(train_set, 60, composed_train, composed_test, segment=arguments.segment, early_stop=False,
+                             device=device, save_dir=arguments.model_dir, save_model=False)
+
+        trainer.train(arguments.epochs, split=arguments.validation_split, debug=arguments.debug)
+
+
 
