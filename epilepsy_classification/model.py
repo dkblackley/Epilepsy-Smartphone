@@ -90,7 +90,7 @@ class Classifier(nn.Module):
 
         output = self.pool(self.activation(self.bn(self.conv(output))))
         output = output.view(timesteps, batch_size, -1) # Change back to 1 batch of 60 frames
-        output, hidden1 = self.rnn1(output, self.hidden1)
+        output, hidden1 = self.rnn(output, self.hidden1)
 
         if dropout:
             output = TF.dropout(output, self.drop_rate)

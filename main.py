@@ -72,13 +72,13 @@ for i in range(1, 10):
     current_dir = f"models/{i}-FOLD_MODEL/"
 
     trainer = ec.Trainer(train_set, 60, composed_train, composed_test, segment='body', early_stop=False, device=device,
-                         save_diir=current_dir, save_model=False)
+                         save_dir=current_dir, save_model=False)
     trainer.LOSO(7, debug=True)
     trainer = ec.Trainer(train_set, 60, composed_train, composed_test, segment='', early_stop=False, device=device,
-                         save_diir=current_dir, save_model=False)
+                         save_dir=current_dir, save_model=False)
     trainer.LOSO(7, debug=True)
     trainer = ec.Trainer(train_set, 60, composed_train, composed_test, segment='face', early_stop=False, device=device,
-                         save_diir=current_dir, save_model=False)
+                         save_dir=current_dir, save_model=False)
     trainer.LOSO(7, debug=True)
 
 
