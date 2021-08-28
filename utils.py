@@ -8,6 +8,8 @@ import csv
 import torch
 from PIL import Image
 import torch.optim as optim
+import numpy as np
+
 
 from epilepsy_classification.model import Classifier
 
@@ -129,7 +131,10 @@ def read_from_csv(filename, to_num=False):
         for row in csv_reader:
             if to_num:
                 for i in range(0, len(row)):
-                    row[i] = float(row[i])
+                    try:
+                        row[i] = float(row[i])
+                    except:
+                        pass
 
 
             list_to_return.append(row)
@@ -246,6 +251,39 @@ def load_model(path, frame_segments, device):
     return net, optimizer
 
 
+def make_results_LATEX():
+    """
+    Changes saved results into a format able to be easily pasted into LATEX
+    :return: string to be pasted
+    :rtype: str
+    """
 
+    results = []
+    for i in range(0, 10):
+        filename = f"models/{i}-FOLD_MODEL/LOSO__RESULTS.csv"
+        current = read_from_csv(filename, to_num=True)
+        result = []
 
+        for item in current:
+            result.append(item[:2])
+        result.pop(0)
 
+        results.append(result)
+    results = np.array(results)
+
+    string = ""
+
+    for i in range(0, len(results[0])):
+        rows = results[:, i:i + 1]
+        rows = np.squeeze(rows, 1)
+
+        first = True
+        for row in rows:
+            if first:
+                string += str(row[0]) + " & "
+                first = False
+            string += str(round(float(row[1]), 3)) + " & "
+        string += "\\\\"
+        string += '\n'
+
+    return string
