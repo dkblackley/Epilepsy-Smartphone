@@ -17,7 +17,41 @@ __status__     = "Development"
 from torchvision import transforms
 import torch
 import numpy as np
+import matplotlib.pyplot as plt
 
+filenames = ['mimic', 'mimic2', 'mimic3', 'mimic4', 'mimic5', 'mimic6', 'mimic7', 'spasm', 'spasm2', 'spasm3', 'spasm4',
+             'spasm5', 'spasm6', 'spasm7', 'spasm8']
+#filenames = ['mimic2', 'mimic3', 'mimic4', 'mimic5', 'mimic6', 'mimic7', 'spasm', 'spasm2', 'spasm3', 'spasm4',
+#             'spasm5', 'spasm6', 'spasm7', 'spasm8']
+accuracies = [
+    [0, 40, 40, 50, 70, 80, 20, 90, 40, 50, 50, 70, 70, 50, 30], # Body
+    [0, 0, 40, 70, 90, 0, 0, 0, 50, 40, 50, 50, 20, 30, 30], # Face
+    [40, 50, 30, 70, 90, 60, 20, 50, 40, 40, 20, 50, 40, 80, 50], # None
+
+]
+
+title = "File accuracies for body segmentation"
+
+fig = plt.figure()
+ax = fig.add_axes([0.1,0.1,1,1])
+ax.bar(filenames, accuracies[0])
+plt.show()
+
+
+data = [[30, 25, 50, 20],
+[40, 23, 51, 17],
+[35, 22, 45, 19]]
+X = np.arange(len(filenames))
+
+fig = plt.figure()
+ax = fig.add_axes([0, 0, 1, 1])
+
+for i in filenames:
+    ax.bar(i, accuracies[0], color = 'b', width = 0.1)
+    ax.bar(i, accuracies[1], color = 'g', width = 0.1)
+    ax.bar(i, accuracies[2], color = 'r', width = 0.1)
+
+plt.show()
 
 #utils.make_labels('temp_set/')
 
@@ -51,6 +85,7 @@ composed_test = transforms.Compose([
                                 #transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
                                ])
 
+#print(utils.make_results_LATEX())
 
 #labels = utils.read_from_csv("datasets/labels.csv")
 #utils.change_into_frames("datasets/", "datasets/", labels)
