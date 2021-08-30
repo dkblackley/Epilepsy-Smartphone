@@ -104,18 +104,18 @@ if __name__ == "__main__":
         for i in range(0, 10):
             current_dir = arguments.model_dir + f"{i}-FOLD_MODEL/"
 
-            trainer = ec.Trainer(train_set, 60, composed_train, composed_test, segment=arguments.segment, early_stop=False,
-                                 device=device, save_dir=current_dir, save_model=False)
+            trainer = ec.Trainer(train_set, 60, composed_train, composed_test, segment='body', early_stop=False,
+                                 device=device, save_dir=current_dir, save_model=arguments.save_model)
             trainer.LOSO(arguments.epochs, debug=arguments.debug)
-            trainer = ec.Trainer(train_set, 60, composed_train, composed_test, segment=arguments.segment, early_stop=False,
-                                 device=device, save_dir=current_dir, save_model=False)
+            trainer = ec.Trainer(train_set, 60, composed_train, composed_test, segment='none', early_stop=False,
+                                 device=device, save_dir=current_dir, save_model=arguments.save_model)
             trainer.LOSO(arguments.epochs, debug=arguments.debug)
-            trainer = ec.Trainer(train_set, 60, composed_train, composed_test, segment=arguments.segment, early_stop=False,
-                                 device=device, save_dir=current_dir, save_model=False)
+            trainer = ec.Trainer(train_set, 60, composed_train, composed_test, segment='face', early_stop=False,
+                                 device=device, save_dir=current_dir, save_model=arguments.save_model)
             trainer.LOSO(arguments.epochs, debug=arguments.debug)
     else:
         trainer = ec.Trainer(train_set, 60, composed_train, composed_test, segment=arguments.segment, early_stop=False,
-                             device=device, save_dir=arguments.model_dir, save_model=False)
+                             device=device, save_dir=arguments.model_dir, save_model=arguments.save_model)
 
         trainer.train(arguments.epochs, split=arguments.validation_split, debug=arguments.debug)
 

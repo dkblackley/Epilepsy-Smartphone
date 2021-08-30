@@ -77,6 +77,9 @@ def load_arguments(description: str) -> Namespace:
     argument_parser.add_argument("--setup", type=string_to_boolean,
                                  default=string_to_boolean(config_parser["standard"]["setup"]),
                                  help="If true, generate the bounding boxes for the videos")
+    argument_parser.add_argument("--save_model", type=string_to_boolean,
+                                 default=string_to_boolean(config_parser["standard"]["save_model"]),
+                                 help="If true, saves the models you run")
 
 
     # Training Arguments
