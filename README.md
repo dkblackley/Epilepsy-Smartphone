@@ -50,3 +50,5 @@ one serves, call python main.py --help, an example call is shown below:
 python3 main.py --LOSO False --epochs 10 --dataset_dir datasets/ --model_dir models/ --segment face
 ```
 
+All code is availible at https://github.com/dkblackley/Epilepsy-Smartphone/
+
